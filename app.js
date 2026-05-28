@@ -1,5 +1,5 @@
 // =========================================================================
-// DAESMI · Cosmetics & Accessories - Sistema Integral de Ventas y Caja (CON FIADOS)
+// DAESMI · Cosmetics & Accessories - Sistema Integral de Ventas y Caja + Marketing
 // =========================================================================
 
 let productos = [];
@@ -22,8 +22,15 @@ function cargarDatosDesdeStorage() {
     combos = JSON.parse(localStorage.getItem("daesmi_combos")) || [];
     transacciones = JSON.parse(localStorage.getItem("daesmi_transacciones")) || [];
     
-    productos.forEach(p => { if (p.activo === undefined) p.activo = true; });
-    combos.forEach(c => { if (c.activo === undefined) c.activo = true; });
+    // Validar retrocompatibilidad con campos nuevos
+    productos.forEach(p => { 
+        if (p.activo === undefined) p.activo = true; 
+        if (p.descripcion === undefined) p.descripcion = ""; 
+    });
+    combos.forEach(c => { 
+        if (c.activo === undefined) c.activo = true; 
+        if (c.descripcion === undefined) c.descripcion = ""; 
+    });
 }
 
 function guardarProductosEnStorage() { localStorage.setItem("daesmi_productos", JSON.stringify(productos)); }
@@ -93,19 +100,21 @@ function inicializarModales() {
     if (document.getElementById("btn-cerrar-modal-combo")) document.getElementById("btn-cerrar-modal-combo").addEventListener("click", () => modalCombo.classList.replace("flex", "hidden"));
     if (document.getElementById("btn-cerrar-modal-venta")) document.getElementById("btn-cerrar-modal-venta").addEventListener("click", () => modalVenta.classList.replace("flex", "hidden"));
 
+    // Guardar Producto (Con descripción)
     if (formProducto) {
         formProducto.addEventListener("submit", (e) => {
             e.preventDefault();
             const nombre = document.getElementById("prod-nombre").value.trim();
+            const descripcion = document.getElementById("prod-descripcion").value.trim();
             const costo = parseFloat(document.getElementById("prod-costo").value) || 0;
             const precio = parseFloat(document.getElementById("prod-precio").value) || 0;
             const stock = parseInt(document.getElementById("prod-stock").value) || 0;
 
             if (idElementoEdicion) {
                 const index = productos.findIndex(p => p.id === idElementoEdicion);
-                if (index !== -1) { productos[index] = { ...productos[index], nombre, costo, precio, stock }; }
+                if (index !== -1) { productos[index] = { ...productos[index], nombre, descripcion, costo, precio, stock }; }
             } else {
-                productos.push({ id: "prod_" + Date.now(), nombre, costo, precio, stock, activo: true });
+                productos.push({ id: "prod_" + Date.now(), nombre, descripcion, costo, precio, stock, activo: true });
             }
             guardarProductosEnStorage();
             renderizarInventario();
@@ -131,34 +140,35 @@ function inicializarModales() {
     const inputPrecioCombo = document.getElementById("combo-precio-venta");
     if (inputPrecioCombo) inputPrecioCombo.addEventListener("input", calcularGananciaComboLive);
 
+    // Guardar Combo (Con descripción)
     if (formCombo) {
         formCombo.addEventListener("submit", (e) => {
             e.preventDefault();
             if (productosEnComboTemporal.length === 0) return alert("Añade productos al combo.");
             const nombre = document.getElementById("combo-nombre").value.trim();
+            const descripcion = document.getElementById("combo-descripcion").value.trim();
             const precioVenta = parseFloat(document.getElementById("combo-precio-venta").value) || 0;
             const costoTotal = productosEnComboTemporal.reduce((sum, p) => sum + (p.costo * p.cantidad), 0);
 
             if (idElementoEdicion) {
                 const index = combos.findIndex(c => c.id === idElementoEdicion);
-                if (index !== -1) { combos[index] = { ...combos[index], nombre, precioVenta, costoTotal, ganancia: precioVenta - costoTotal, productos: [...productosEnComboTemporal] }; }
+                if (index !== -1) { combos[index] = { ...combos[index], nombre, descripcion, precioVenta, costoTotal, ganancia: precioVenta - costoTotal, productos: [...productosEnComboTemporal] }; }
             } else {
-                combos.push({ id: "combo_" + Date.now(), nombre, precioVenta, costoTotal, ganancia: precioVenta - costoTotal, productos: [...productosEnComboTemporal], activo: true });
+                combos.push({ id: "combo_" + Date.now(), nombre, descripcion, precioVenta, costoTotal, ganancia: precioVenta - costoTotal, productos: [...productosEnComboTemporal], activo: true });
             }
             guardosCombosYActualizar();
             modalCombo.classList.replace("flex", "hidden");
         });
     }
 
-    // PROCESAR VENTA (MODIFICADA PARA INCLUIR ESTADO DE PAGO)
+    // Registrar Venta
     if (formVenta) {
         formVenta.addEventListener("submit", (e) => {
             e.preventDefault();
             const itemSeleccionado = document.getElementById("venta-select-item").value;
             if (!itemSeleccionado) return;
 
-            const estadoPago = document.getElementById("venta-estado-pago").value; // 'pagado' o 'pendiente'
-
+            const estadoPago = document.getElementById("venta-estado-pago").value;
             let costoTotalVenta = 0;
             let precioCobrado = parseFloat(document.getElementById("venta-precio-final").value) || 0;
             let nombreArticulo = "";
@@ -199,7 +209,7 @@ function inicializarModales() {
                 totalRecibido: precioCobrado,
                 costoReal: costoTotalVenta,
                 gananciaLimpia: precioCobrado - costoTotalVenta,
-                estado: estadoPago // Guarda si se pagó o no
+                estado: estadoPago
             });
 
             guardarProductosEnStorage();
@@ -225,6 +235,17 @@ function inicializarModales() {
             document.getElementById("venta-precio-final").value = precioSugerido;
         });
     }
+
+    // Configurar botón de portapapeles del generador de Marketing
+    const btnCopiar = document.getElementById("btn-copiar-copy");
+    if (btnCopiar) {
+        btnCopiar.addEventListener("click", () => {
+            const elTexto = document.getElementById("mkt-texto-copy");
+            elTexto.select();
+            document.execCommand("copy");
+            alert("¡Texto listo y copiado al portapapeles! 📋");
+        });
+    }
 }
 
 function abrirModalProducto(id = null) {
@@ -236,6 +257,7 @@ function abrirModalProducto(id = null) {
         const p = productos.find(p => p.id === id);
         if (p) {
             document.getElementById("prod-nombre").value = p.nombre;
+            document.getElementById("prod-descripcion").value = p.descripcion || "";
             document.getElementById("prod-costo").value = p.costo;
             document.getElementById("prod-precio").value = p.precio;
             document.getElementById("prod-stock").value = p.stock;
@@ -259,6 +281,7 @@ function abrirModalCombo(id = null) {
         const c = combos.find(combo => combo.id === id);
         if (c) {
             document.getElementById("combo-nombre").value = c.nombre;
+            document.getElementById("combo-descripcion").value = c.descripcion || "";
             document.getElementById("combo-precio-venta").value = c.precioVenta;
             productosEnComboTemporal = [...c.productos];
             actualizarTablaItemsCombo();
@@ -313,9 +336,8 @@ function calcularGananciaComboLive() {
 
 function guardosCombosYActualizar() { guardarCombosEnStorage(); renderizarInventario(); }
 
-// NUEVAS FUNCIONES EXPUESTAS PARA CONTROL DE OPERACIONES
 window.eliminarTransaccion = function(id) {
-    if (confirm("¿Estás segura de eliminar esta venta? Esto no devolverá automáticamente los productos al inventario, pero limpiará las cuentas de caja.")) {
+    if (confirm("¿Estás segura de eliminar esta venta? Limpiará los reportes de caja actuales.")) {
         transacciones = transacciones.filter(tx => tx.id !== id);
         guardarTransaccionesEnStorage();
         renderizarBalance();
@@ -331,6 +353,41 @@ window.marcarComoPagada = function(id) {
     }
 };
 
+// NUEVA FUNCIÓN: PROCESAR POP-UP DE MARKETING
+window.lanzarMarketing = function(id, tipo) {
+    let titulo = "";
+    let desc = "";
+    let precio = 0;
+
+    if (tipo === 'combo') {
+        const c = combos.find(item => item.id === id);
+        if (!c) return;
+        titulo = c.nombre;
+        desc = c.descripcion ? c.descripcion : `¡Exclusivo Kit Combinado! Una selección ideal pensada especialmente para resaltar tu belleza con la mejor calidad DAESMI.`;
+        precio = c.precioVenta;
+    } else {
+        const p = productos.find(item => item.id === id);
+        if (!p) return;
+        titulo = p.nombre;
+        desc = p.descripcion ? p.descripcion : `Hermoso producto individual de nuestro catálogo de cosméticos y accesorios. ¡Calidad garantizada!`;
+        precio = p.precio;
+    }
+
+    // Rellenar previsualizador visual para pantallazo
+    document.getElementById("mkt-preview-titulo").textContent = titulo;
+    document.getElementById("mkt-preview-desc").textContent = desc;
+    document.getElementById("mkt-preview-precio").textContent = `$${precio.toFixed(2)}`;
+
+    // Armar bloque de copy para redes sociales
+    const textoCopy = `✨ ¡LO NUEVO EN CATÁLOGO! ✨\n\n🛍️ *${titulo}*\n\n${desc}\n\n💵 *Precio Especial:* $${precio.toFixed(2)}\n\n🚀 ¡Pocas unidades disponibles! Escríbenos directamente para separar el tuyo antes de que se agote. 💕`;
+    document.getElementById("mkt-texto-copy").value = textoCopy;
+
+    // Mostrar modal
+    const modalMkt = document.getElementById("modal-marketing");
+    modalMkt.classList.replace("hidden", "flex");
+    lucide.createIcons();
+};
+
 function renderizarBalance() {
     let totalVentas = 0;
     let totalCostos = 0;
@@ -338,8 +395,7 @@ function renderizarBalance() {
     let totalPorCobrar = 0;
 
     transacciones.forEach(tx => {
-        totalCostos += tx.costoReal; // La inversión ya se hizo de todos modos
-        
+        totalCostos += tx.costoReal;
         if (tx.estado === "pendiente") {
             totalPorCobrar += tx.totalRecibido;
         } else {
@@ -373,7 +429,6 @@ function renderizarBalance() {
     let html = '<div class="space-y-2">';
     transacciones.forEach(tx => {
         const esPendiente = tx.estado === "pendiente";
-        
         html += `
             <div class="bg-white p-3 rounded-xl border ${esPendiente ? 'border-amber-200 bg-amber-50/20' : 'border-slate-100'} shadow-xs flex justify-between items-center text-xs">
                 <div class="space-y-1">
@@ -385,14 +440,11 @@ function renderizarBalance() {
                     </div>
                     <p class="text-[10px] text-slate-400">${tx.fecha}</p>
                 </div>
-                
                 <div class="flex items-center gap-3">
                     <div class="text-right">
                         <p class="font-bold ${esPendiente ? 'text-amber-600' : 'text-emerald-600'}">+$${tx.totalRecibido.toFixed(2)}</p>
                         <p class="text-[9px] text-slate-400">Ganancia: +$${tx.gananciaLimpia.toFixed(2)}</p>
                     </div>
-                    
-                    <!-- Botonera Operativa de Venta -->
                     <div class="flex items-center gap-1 border-l pl-2 border-slate-200">
                         ${esPendiente ? `
                             <button onclick="marcarComoPagada('${tx.id}')" title="Marcar como pagado" class="text-emerald-600 bg-emerald-50 hover:bg-emerald-100 p-1.5 rounded-lg border border-emerald-200 cursor-pointer transition-colors">
@@ -435,10 +487,12 @@ function renderizarInventario() {
                         <div>
                             <span class="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${c.activo ? 'bg-purple-600 text-white' : 'bg-slate-400 text-white'}">${c.activo ? 'Combo Kit Activo' : 'Inactivo'}</span>
                             <h4 class="font-bold text-slate-800 text-sm mt-1">${c.nombre}</h4>
-                            <p class="text-xs text-slate-500">Costo: $${c.costoTotal.toFixed(2)} | Venta: <span class="font-bold text-purple-700">$${c.precioVenta.toFixed(2)}</span></p>
+                            <p class="text-xs text-slate-500 max-w-[200px] truncate">${c.descripcion || 'Sin descripción comercial'}</p>
+                            <p class="text-xs text-slate-500 mt-1">Costo: $${c.costoTotal.toFixed(2)} | Venta: <span class="font-bold text-purple-700">$${c.precioVenta.toFixed(2)}</span></p>
                             <p class="text-xs font-bold text-emerald-600">Ganancia: +$${c.ganancia.toFixed(2)}</p>
                         </div>
                         <div class="flex items-center gap-1.5 bg-white p-1 rounded-lg border border-slate-100 shadow-xs">
+                            <button onclick="lanzarMarketing('${c.id}', 'combo')" title="Promocionar redes" class="text-purple-600 hover:bg-purple-50 p-1 cursor-pointer"><i data-lucide="megaphone" class="w-3.5 h-3.5"></i></button>
                             <button onclick="editarCombo('${c.id}')" class="text-slate-500 hover:text-purple-700 p-1 cursor-pointer"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
                             <button onclick="conmutarEstadoCombo('${c.id}')" class="text-slate-500 p-1 cursor-pointer"><i data-lucide="${c.activo ? 'eye' : 'eye-off'}" class="w-3.5 h-3.5"></i></button>
                             <button onclick="eliminarCombo('${c.id}')" class="text-slate-400 hover:text-rose-600 p-1 cursor-pointer"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
@@ -454,12 +508,14 @@ function renderizarInventario() {
                 <div class="bg-white p-4 rounded-xl border ${p.activo ? 'border-slate-100 shadow-xs' : 'border-slate-200 bg-slate-50/70 opacity-60'} flex justify-between items-center">
                     <div>
                         <div class="flex items-center gap-2"><h4 class="font-bold text-slate-800 text-sm">${p.nombre}</h4>${!p.activo ? '<span class="text-[9px] bg-slate-300 text-slate-600 px-1.5 py-0.2 rounded font-bold">Inactivo</span>' : ''}</div>
-                        <p class="text-xs text-slate-400">Costo: $${p.costo.toFixed(2)} | Venta: $${p.precio.toFixed(2)}</p>
+                        <p class="text-xs text-slate-400 max-w-[200px] truncate">${p.descripcion || 'Sin descripción'}</p>
+                        <p class="text-xs text-slate-400 mt-0.5">Costo: $${p.costo.toFixed(2)} | Venta: $${p.precio.toFixed(2)}</p>
                         <p class="text-xs font-semibold text-purple-600">Ganancia: +$${(p.precio - p.costo).toFixed(2)}</p>
                     </div>
                     <div class="flex flex-col items-end gap-2">
                         <span class="px-2 py-0.5 text-[10px] font-bold rounded-md ${p.stock > 0 && p.activo ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}">${p.stock} Unds</span>
                         <div class="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-100 shadow-xs">
+                            <button onclick="lanzarMarketing('${p.id}', 'producto')" title="Promocionar redes" class="text-purple-600 hover:bg-purple-50 p-1 cursor-pointer"><i data-lucide="megaphone" class="w-3.5 h-3.5"></i></button>
                             <button onclick="editarProducto('${p.id}')" class="text-slate-500 p-1 cursor-pointer"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
                             <button onclick="conmutarEstadoProducto('${p.id}')" class="text-slate-500 p-1 cursor-pointer"><i data-lucide="${p.activo ? 'eye' : 'eye-off'}" class="w-3.5 h-3.5"></i></button>
                             <button onclick="eliminarProducto('${p.id}')" class="text-slate-400 hover:text-rose-600 p-1 cursor-pointer"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
