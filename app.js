@@ -148,16 +148,33 @@ function inicializarNavegacionYModales() {
     window.cambiarVistaEfectiva = function(vistaActivaId, bActivo) {
         document.querySelectorAll("section").forEach(s => s.classList.add("hidden"));
         document.getElementById(vistaActivaId).classList.remove("hidden");
-        botones.forEach(b => { b.classList.replace("text-purple-800", "text-slate-400"); b.classList.remove("font-bold"); });
-        if(bActivo) { bActivo.classList.replace("text-slate-400", "text-purple-800"); bActivo.classList.add("font-bold"); }
+        botones.forEach(b => { 
+            if(b) {
+                b.classList.replace("text-purple-800", "text-slate-400"); 
+                b.classList.remove("font-bold"); 
+            }
+        });
+        if(bActivo) { 
+            bActivo.classList.replace("text-slate-400", "text-purple-800"); 
+            bActivo.classList.add("font-bold"); 
+        }
     };
 
-    btnBalance.addEventListener("click", () => cambiarVistaEfectiva("view-balance", btnBalance));
-    btnInventario.addEventListener("click", () => cambiarVistaEfectiva("view-inventario", btnInventario));
-    btnAjustes.addEventListener("click", () => cambiarVistaEfectiva("view-ajustes", btnAjustes));
+    if(btnBalance) btnBalance.addEventListener("click", () => cambiarVistaEfectiva("view-balance", btnBalance));
+    if(btnInventario) btnInventario.addEventListener("click", () => cambiarVistaEfectiva("view-inventario", btnInventario));
+    if(btnAjustes) btnAjustes.addEventListener("click", () => cambiarVistaEfectiva("view-ajustes", btnAjustes));
 
-    document.getElementById("btn-dash-venta").addEventListener("click", () => abrirModalVenta());
-    document.getElementById("btn-dash-combo").addEventListener("click", () => abrirModalCombo());
+    // Botones del Dashboard de Caja
+    const btnDashVenta = document.getElementById("btn-dash-venta");
+    const btnDashCombo = document.getElementById("btn-dash-combo");
+    if(btnDashVenta) btnDashVenta.addEventListener("click", () => abrirModalVenta());
+    if(btnDashCombo) btnDashCombo.addEventListener("click", () => abrirModalCombo());
+
+    // CONEXIÓN CORREGIDA: Botones de creación dentro de la pestaña Catálogo
+    const btnNuevoProd = document.getElementById("btn-nuevo-producto");
+    const btnNuevoCombo = document.getElementById("btn-nuevo-combo");
+    if(btnNuevoProd) btnNuevoProd.addEventListener("click", () => abrirModalProducto());
+    if(btnNuevoCombo) btnNuevoCombo.addEventListener("click", () => abrirModalCombo());
 
     // Control de cierres de Modales
     document.getElementById("btn-cerrar-modal-prod").addEventListener("click", () => document.getElementById("modal-producto").classList.replace("flex", "hidden"));
@@ -240,7 +257,6 @@ function inicializarNavegacionYModales() {
             const combo = combos.find(c => c.id === cleanId);
             if (!combo) return;
 
-            // Descontar inventarios cruzados
             for (let item of combo.productos) {
                 const orig = productos.find(p => p.id === item.id);
                 if (!orig || orig.stock < item.cantidad) return alert(`Stock insuficiente de ${item.nombre}`);
@@ -266,7 +282,6 @@ function inicializarNavegacionYModales() {
         document.getElementById("modal-venta").classList.replace("flex", "hidden");
     });
 
-    // Listener de precio sugerido en venta rápida
     document.getElementById("venta-select-item").addEventListener("change", (e) => {
         const val = e.target.value;
         let precio = 0;
