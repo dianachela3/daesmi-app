@@ -1,144 +1,62 @@
-// Importaciones de los módulos CDN de Firebase de forma directa
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { 
+    getFirestore, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// Tu configuración real de Firebase
+// Configuración de Firebase (Tu configuración actual de DAESMI)
 const firebaseConfig = {
-  apiKey: "AIzaSyAzW2B3R_TxTojtp8Vw0iS3C2APO2Pmi5A",
-  authDomain: "daesmi-8a93c.firebaseapp.com",
-  projectId: "daesmi-8a93c",
-  storageBucket: "daesmi-8a93c.firebasestorage.app",
-  messagingSenderId: "298101414150",
-  appId: "1:298101414150:web:294bcf5dd07f18a9cc6687"
+    apiKey: "TU_API_KEY",
+    authDomain: "daesmi-XXXXX.firebaseapp.com",
+    projectId: "daesmi-XXXXX",
+    storageBucket: "daesmi-XXXXX.appspot.com",
+    messagingSenderId: "XXXXXXXXXXXX",
+    appId: "X:XXXXXX:web:XXXXXX"
 };
 
-// Inicializar instancias globales
+// Inicializar Firebase
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Estado de memoria local de la app
+// Estado Global de la Aplicación
 let productos = [];
 let combos = [];
 let transacciones = [];
-let usuarioActual = null;
+let idElementoEdicion = null; // Controla si creamos o editamos
 let productosEnComboTemporal = [];
-let idElementoEdicion = null;
+let filtroFechaActual = "mes"; // Filtro por defecto para el Balance: hoy, semana, mes
 
+// Al arrancar la página
 document.addEventListener("DOMContentLoaded", () => {
-    escucharCambiosSesion();
     inicializarNavegacionYModales();
-    escucharDatosEnTiempoReal();
+    escucharDatosFirebase();
+    configurarSelectoresFiltro();
 });
 
-// ==========================================
-// CONTROL DE ACCESO, LOGIN Y VISTAS SEGÚN SESIÓN
-// ==========================================
-function escucharCambiosSesion() {
-    onAuthStateChanged(auth, (user) => {
-        usuarioActual = user;
-        const btnSesion = document.getElementById("btn-estado-sesion");
-        const txtSesion = document.getElementById("txt-estado-sesion");
-        const navBalance = document.getElementById("nav-balance");
-        const navAjustes = document.getElementById("nav-ajustes");
-        const wrapperAcciones = document.getElementById("wrapper-acciones-inventario");
-        
-        if (user) {
-            // Modo Administrador Desbloqueado
-            txtSesion.textContent = "Admin";
-            btnSesion.className = "bg-emerald-100 p-2 rounded-xl text-emerald-800 shadow-xs cursor-pointer flex items-center gap-1.5 text-xs font-bold";
-            
-            navBalance.classList.remove("hidden");
-            navAjustes.classList.remove("hidden");
-            wrapperAcciones.classList.remove("hidden");
-            
-            document.getElementById("titulo-catalogo").textContent = "Administración de Catálogo";
-            document.getElementById("desc-catalogo").textContent = "Modifica existencias, costos y kits comerciales.";
-        } else {
-            // Modo Cliente / Público (Solo lectura)
-            txtSesion.textContent = "Login";
-            btnSesion.className = "bg-purple-100 p-2 rounded-xl text-purple-800 shadow-xs cursor-pointer flex items-center gap-1.5 text-xs font-bold";
-            
-            navBalance.classList.add("hidden");
-            navAjustes.classList.add("hidden");
-            wrapperAcciones.classList.add("hidden");
-            
-            document.getElementById("titulo-catalogo").textContent = "Catálogo Digital";
-            document.getElementById("desc-catalogo").textContent = "Explora nuestros productos y kits exclusivos";
-            
-            // Si el cliente estaba en una sección privada, forzar regreso a catálogo
-            cambiarVistaEfectiva("view-inventario", document.getElementById("nav-inventario"));
-        }
-        renderizarInventario();
-        renderizarBalance();
-    });
-
-    // Evento click del botón superior de estado de sesión
-    document.getElementById("btn-estado-sesion").addEventListener("click", () => {
-        if (usuarioActual) {
-            cambiarVistaEfectiva("view-ajustes", document.getElementById("nav-ajustes"));
-        } else {
-            document.querySelectorAll("section").forEach(s => s.classList.add("hidden"));
-            document.getElementById("view-login").classList.remove("hidden");
-        }
-    });
-
-    document.getElementById("btn-cancelar-login").addEventListener("click", () => {
-        cambiarVistaEfectiva("view-inventario", document.getElementById("nav-inventario"));
-    });
-
-    // Procesar Login con Firebase Auth
-    document.getElementById("form-login").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const email = document.getElementById("login-email").value.trim();
-        const pass = document.getElementById("login-password").value;
-        try {
-            await signInWithEmailAndPassword(auth, email, pass);
-            document.getElementById("form-login").reset();
-            cambiarVistaEfectiva("view-inventario", document.getElementById("nav-inventario"));
-        } catch (error) {
-            alert("Error de autenticación. Verifica correo o contraseña.");
-        }
-    });
-
-    // Procesar Cierre de Sesión
-    document.getElementById("btn-cerrar-sesion").addEventListener("click", () => {
-        signOut(auth);
-    });
-}
-
-// ==========================================
-// CONEXIÓN EN TIEMPO REAL CON FIRESTORE (SIN LOCALSTORAGE)
-// ==========================================
-function escucharDatosEnTiempoReal() {
-    // Sincronizar Productos
-    onSnapshot(collection(db, "productos"), (snapshot) => {
+// 1. ESCUCHA DE DATOS EN TIEMPO REAL (FIREBASE)
+function escucharDatosFirebase() {
+    // Escuchar Productos
+    onSnapshot(query(collection(db, "productos"), orderBy("nombre")), (snapshot) => {
         productos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        actualizarSelectoresProducto();
-        renderizarInventario();
-        renderizarBalance();
+        actualizarSelectoresDeProductos();
+        renderizarTablaInventario();
+        verificarAlertasStock();
     });
 
-    // Sincronizar Combos
-    onSnapshot(collection(db, "combos"), (snapshot) => {
+    // Escuchar Combos / Kits
+    onSnapshot(query(collection(db, "combos"), orderBy("nombre")), (snapshot) => {
         combos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        renderizarInventario();
-        renderizarBalance();
+        actualizarSelectoresDeProductos();
+        renderizarTablaInventario();
     });
 
-    // Sincronizar Historial de Caja Ventas
-    onSnapshot(collection(db, "transacciones"), (snapshot) => {
+    // Escuchar Ventas y Transacciones
+    onSnapshot(query(collection(db, "transacciones"), orderBy("timestamp", "desc")), (snapshot) => {
         transacciones = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        // Ordenar por fecha descendente de forma local
-        transacciones.sort((a,b) => b.timestamp - a.timestamp);
-        renderizarBalance();
+        procesarYRenderizarBalance();
     });
 }
 
-// ==========================================
-// LÓGICA DE NEGOCIO Y GUARDADO DE DATOS EN NUBE
-// ==========================================
+// 2. CONEXIÓN DE NAVEGACIÓN, ENTRADAS Y FORMULARIOS
 function inicializarNavegacionYModales() {
     const btnBalance = document.getElementById("nav-balance");
     const btnInventario = document.getElementById("nav-inventario");
@@ -164,24 +82,24 @@ function inicializarNavegacionYModales() {
     if(btnInventario) btnInventario.addEventListener("click", () => cambiarVistaEfectiva("view-inventario", btnInventario));
     if(btnAjustes) btnAjustes.addEventListener("click", () => cambiarVistaEfectiva("view-ajustes", btnAjustes));
 
-    // Botones del Dashboard de Caja
+    // Botones rápidos de la Caja Dinámica
     const btnDashVenta = document.getElementById("btn-dash-venta");
     const btnDashCombo = document.getElementById("btn-dash-combo");
     if(btnDashVenta) btnDashVenta.addEventListener("click", () => abrirModalVenta());
-    if(btnDashCombo) btnDashCombo.addEventListener("click", () => abrirModalCombo());
+    if(btnDashCombo) btnDashCombo.addEventListener("click", () => abrirModalCombo()); // Abre combo vacío
 
-    // CONEXIÓN CORREGIDA: Botones de creación dentro de la pestaña Catálogo
+    // Botones del Catálogo (Pestaña Inventario)
     const btnNuevoProd = document.getElementById("btn-nuevo-producto");
     const btnNuevoCombo = document.getElementById("btn-nuevo-combo");
-    if(btnNuevoProd) btnNuevoProd.addEventListener("click", () => abrirModalProducto());
-    if(btnNuevoCombo) btnNuevoCombo.addEventListener("click", () => abrirModalCombo());
+    if(btnNuevoProd) btnNuevoProd.addEventListener("click", () => abrirModalProducto(null)); // null asegura que limpia
+    if(btnNuevoCombo) btnNuevoCombo.addEventListener("click", () => abrirModalCombo(null));
 
-    // Control de cierres de Modales
-    document.getElementById("btn-cerrar-modal-prod").addEventListener("click", () => document.getElementById("modal-producto").classList.replace("flex", "hidden"));
-    document.getElementById("btn-cerrar-modal-combo").addEventListener("click", () => document.getElementById("modal-combo").classList.replace("flex", "hidden"));
-    document.getElementById("btn-cerrar-modal-venta").addEventListener("click", () => document.getElementById("modal-venta").classList.replace("flex", "hidden"));
+    // Cierres de Modales con métodos seguros remove/add
+    document.getElementById("btn-cerrar-modal-prod").addEventListener("click", () => cerrarModal("modal-producto"));
+    document.getElementById("btn-cerrar-modal-combo").addEventListener("click", () => cerrarModal("modal-combo"));
+    document.getElementById("btn-cerrar-modal-venta").addEventListener("click", () => cerrarModal("modal-venta"));
 
-    // Guardar/Editar Producto
+    // Guardar o Editar un Producto
     document.getElementById("form-producto").addEventListener("submit", async (e) => {
         e.preventDefault();
         const nombre = document.getElementById("prod-nombre").value.trim();
@@ -198,30 +116,33 @@ function inicializarNavegacionYModales() {
         } else {
             await addDoc(collection(db, "productos"), payload);
         }
-        document.getElementById("modal-producto").classList.replace("flex", "hidden");
+        cerrarModal("modal-producto");
     });
 
-    // Guardar/Editar Combo
+    // Guardar o Editar un Kit / Combo
     document.getElementById("form-combo").addEventListener("submit", async (e) => {
         e.preventDefault();
-        if (productosEnComboTemporal.length === 0) return alert("Añade productos al kit.");
+        if (productosEnComboTemporal.length === 0) return alert("Por favor, añade al menos un producto al kit.");
         const nombre = document.getElementById("combo-nombre").value.trim();
         const descripcion = document.getElementById("combo-descripcion").value.trim();
         const fotoUrl = document.getElementById("combo-foto").value.trim();
         const precioVenta = parseFloat(document.getElementById("combo-precio-venta").value) || 0;
         const costoTotal = productosEnComboTemporal.reduce((sum, p) => sum + (p.costo * p.cantidad), 0);
 
-        const payload = { nombre, descripcion, fotoUrl, precioVenta, costoTotal, ganancia: precioVenta - costoTotal, productos: productosEnComboTemporal, activo: true };
+        const payload = { 
+            nombre, descripcion, fotoUrl, precioVenta, costoTotal, 
+            ganancia: precioVenta - costoTotal, productos: productosEnComboTemporal, activo: true 
+        };
 
         if (idElementoEdicion) {
             await updateDoc(doc(db, "combos", idElementoEdicion), payload);
         } else {
             await addDoc(collection(db, "combos"), payload);
         }
-        document.getElementById("modal-combo").classList.replace("flex", "hidden");
+        cerrarModal("modal-combo");
     });
 
-    // Agregar Item al Armador de Combo
+    // Añadir producto al armador de combos
     document.getElementById("btn-agregar-item-combo").addEventListener("click", () => {
         const select = document.getElementById("combo-select-producto");
         if (!select.value) return;
@@ -229,11 +150,15 @@ function inicializarNavegacionYModales() {
         if (!prod) return;
 
         const existe = productosEnComboTemporal.find(p => p.id === prod.id);
-        if (existe) { existe.cantidad += 1; } else { productosEnComboTemporal.push({ id: prod.id, nombre: prod.nombre, costo: prod.costo, cantidad: 1 }); }
+        if (existe) { 
+            existe.cantidad += 1; 
+        } else { 
+            productosEnComboTemporal.push({ id: prod.id, nombre: prod.nombre, costo: prod.costo, cantidad: 1 }); 
+        }
         actualizarListaVisualCombo();
     });
 
-    // Registrar Transacción Venta
+    // Registrar una Nueva Venta (Resta del Stock automáticamente)
     document.getElementById("form-venta").addEventListener("submit", async (e) => {
         e.preventDefault();
         const itemId = document.getElementById("venta-select-item").value;
@@ -247,7 +172,7 @@ function inicializarNavegacionYModales() {
         if (itemId.startsWith("prod_")) {
             const cleanId = itemId.replace("prod_", "");
             const prod = productos.find(p => p.id === cleanId);
-            if (!prod || prod.stock < 1) return alert("Sin existencias suficientes.");
+            if (!prod || prod.stock < 1) return alert("¡Alerta! No quedan existencias suficientes de este producto.");
             
             await updateDoc(doc(db, "productos", cleanId), { stock: prod.stock - 1 });
             costoTotalVenta = prod.costo;
@@ -257,10 +182,12 @@ function inicializarNavegacionYModales() {
             const combo = combos.find(c => c.id === cleanId);
             if (!combo) return;
 
+            // Verificar stock de todos los componentes antes de descontar
             for (let item of combo.productos) {
                 const orig = productos.find(p => p.id === item.id);
-                if (!orig || orig.stock < item.cantidad) return alert(`Stock insuficiente de ${item.nombre}`);
+                if (!orig || orig.stock < item.cantidad) return alert(`Stock insuficiente en inventario para el componente: ${item.nombre}`);
             }
+            // Descontar stock de los componentes del combo
             for (let item of combo.productos) {
                 const orig = productos.find(p => p.id === item.id);
                 await updateDoc(doc(db, "productos", item.id), { stock: orig.stock - item.cantidad });
@@ -269,6 +196,7 @@ function inicializarNavegacionYModales() {
             nombreArticulo = `[Kit] ${combo.nombre}`;
         }
 
+        // Guardar la venta con timestamp para poder filtrarla por fechas
         await addDoc(collection(db, "transacciones"), {
             articulo: nombreArticulo,
             totalRecibido: precioCobrado,
@@ -279,9 +207,10 @@ function inicializarNavegacionYModales() {
             timestamp: Date.now()
         });
 
-        document.getElementById("modal-venta").classList.replace("flex", "hidden");
+        cerrarModal("modal-venta");
     });
 
+    // Auto-completar precio sugerido al seleccionar artículo en venta
     document.getElementById("venta-select-item").addEventListener("change", (e) => {
         const val = e.target.value;
         let precio = 0;
@@ -290,21 +219,24 @@ function inicializarNavegacionYModales() {
         document.getElementById("venta-precio-final").value = precio;
     });
 
-    document.getElementById("btn-copiar-copy").addEventListener("click", () => {
-        const tx = document.getElementById("mkt-texto-copy");
-        tx.select();
-        document.execCommand("copy");
-        alert("¡Copy copiado de forma exitosa! 📋");
-    });
+    // Botón rápido de copiar texto de Marketing
+    const btnCopy = document.getElementById("btn-copiar-copy");
+    if(btnCopy) {
+        btnCopy.addEventListener("click", () => {
+            const tx = document.getElementById("mkt-texto-copy");
+            tx.select();
+            document.execCommand("copy");
+            alert("¡Texto comercial copiado al portapapeles! 📋");
+        });
+    }
 }
 
-// ==========================================
-// RENDERIZADO VISUAL DINÁMICO E INTERFAZ
-// ==========================================
-function abrirModalProducto(id = null) {
-    idElementoEdicion = id;
+// 3. APERTURA Y CIERRE SEGURO DE MODALES (CORREGIDO)
+window.abrirModalProducto = function(id = null) {
+    idElementoEdicion = id; // Si es null, Firebase sabe que es nuevo producto
     const form = document.getElementById("form-producto");
     form.reset();
+    
     if(id) {
         const p = productos.find(p => p.id === id);
         if(p) {
@@ -316,14 +248,17 @@ function abrirModalProducto(id = null) {
             document.getElementById("prod-stock").value = p.stock;
         }
     }
-    document.getElementById("modal-producto").classList.replace("hidden", "flex");
+    const modal = document.getElementById("modal-producto");
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
 }
 
-function abrirModalCombo(id = null) {
+window.abrirModalCombo = function(id = null) {
     idElementoEdicion = id;
     document.getElementById("form-combo").reset();
     productosEnComboTemporal = [];
     actualizarListaVisualCombo();
+
     if(id) {
         const c = combos.find(cb => cb.id === id);
         if(c) {
@@ -335,172 +270,257 @@ function abrirModalCombo(id = null) {
             actualizarListaVisualCombo();
         }
     }
-    document.getElementById("modal-combo").classList.replace("hidden", "flex");
+    const modal = document.getElementById("modal-combo");
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
 }
 
 function abrirModalVenta() {
     document.getElementById("form-venta").reset();
-    const select = document.getElementById("venta-select-item");
-    select.innerHTML = '<option value="">-- ¿Qué vendiste hoy? --</option>';
-    
-    if(combos.length > 0) {
-        select.innerHTML += `<optgroup label="✨ KITS COMBOS">`;
-        combos.filter(c => c.activo).forEach(c => select.innerHTML += `<option value="combo_${c.id}">${c.nombre} ($${c.precioVenta})</option>`);
-    }
-    if(productos.length > 0) {
-        select.innerHTML += `<optgroup label="💄 INDIVIDUALES">`;
-        productos.filter(p => p.activo && p.stock > 0).forEach(p => select.innerHTML += `<option value="prod_${p.id}">${p.nombre} (Dispo: ${p.stock})</option>`);
-    }
-    document.getElementById("modal-venta").classList.replace("hidden", "flex");
+    const modal = document.getElementById("modal-venta");
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
 }
 
-function actualizarSelectoresProducto() {
-    const select = document.getElementById("combo-select-producto");
-    if (!select) return;
-    select.innerHTML = '<option value="">-- Seleccionar --</option>';
-    productos.filter(p => p.activo).forEach(p => select.innerHTML += `<option value="${p.id}">${p.nombre}</option>`);
+function cerrarModal(idModal) {
+    const modal = document.getElementById(idModal);
+    modal.classList.remove("flex");
+    modal.classList.add("hidden");
+    idElementoEdicion = null; // Reseteo de seguridad al cerrar
+}
+
+// 4. FILTROS DE FECHAS PARA EL BALANCE (NUEVO)
+function configurarSelectoresFiltro() {
+    // Si tienes botones con ID: filtro-hoy, filtro-semana, filtro-mes en tu HTML
+    const btnHoy = document.getElementById("filtro-hoy");
+    const btnSemana = document.getElementById("filtro-semana");
+    const btnMes = document.getElementById("filtro-mes");
+
+    const cambiarFiltroVisual = (filtro, btnActivo) => {
+        filtroFechaActual = filtro;
+        [btnHoy, btnSemana, btnMes].forEach(b => {
+            if(b) b.classList.replace("bg-purple-600", "bg-slate-200");
+            if(b) b.classList.replace("text-white", "text-slate-700");
+        });
+        if(btnActivo) {
+            btnActivo.classList.replace("bg-slate-200", "bg-purple-600");
+            btnActivo.classList.replace("text-slate-700", "text-white");
+        }
+        procesarYRenderizarBalance(); // Recalcula la caja
+    };
+
+    if(btnHoy) btnHoy.addEventListener("click", () => cambiarFiltroVisual("hoy", btnHoy));
+    if(btnSemana) btnSemana.addEventListener("click", () => cambiarFiltroVisual("semana", btnSemana));
+    if(btnMes) btnMes.addEventListener("click", () => cambiarFiltroVisual("mes", btnMes));
+}
+
+function cumpleFiltroFecha(timestamp) {
+    const ahora = new Date();
+    const fechaTransaccion = new Date(timestamp);
+
+    if (filtroFechaActual === "hoy") {
+        return ahora.toDateString() === fechaTransaccion.toDateString();
+    } else if (filtroFechaActual === "semana") {
+        const haceUnaSemana = Date.now() - (7 * 24 * 60 * 60 * 1000);
+        return timestamp >= haceUnaSemana;
+    } else if (filtroFechaActual === "mes") {
+        return ahora.getMonth() === fechaTransaccion.getMonth() && ahora.getFullYear() === fechaTransaccion.getFullYear();
+    }
+    return true;
+}
+
+// 5. CÁLCULO DE INGRESOS, COSTOS Y UTILIDAD EN PANTALLA
+function procesarYRenderizarBalance() {
+    let totalVentas = 0;
+    let totalCostos = 0;
+    let totalGanancias = 0;
+
+    const tablaVentasBody = document.getElementById("lista-transacciones-body");
+    if(tablaVentasBody) tablaVentasBody.innerHTML = "";
+
+    // Filtrar transacciones según rango elegido
+    const transaccionesFiltradas = transacciones.filter(t => cumpleFiltroFecha(t.timestamp));
+
+    transaccionesFiltradas.forEach(t => {
+        totalVentas += t.totalRecibido;
+        totalCostos += t.costoReal;
+        totalGanancias += t.gananciaLimpia;
+
+        if(tablaVentasBody) {
+            const tr = document.createElement("tr");
+            tr.className = "border-b border-slate-100 text-sm";
+            tr.innerHTML = `
+                <td class="py-3 font-medium text-slate-800">${t.articulo}</td>
+                <td class="py-3 text-slate-500">${t.fecha}</td>
+                <td class="py-3 text-right font-semibold text-emerald-600">$${t.totalRecibido.toLocaleString()}</td>
+                <td class="py-3 text-right"><span class="px-2 py-0.5 rounded text-xs ${t.estado === 'Pagado' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${t.estado}</span></td>
+            `;
+            tablaVentasBody.appendChild(tr);
+        }
+    });
+
+    // Actualizar las tarjetas del dashboard superior
+    if(document.getElementById("dash-ingresos")) document.getElementById("dash-ingresos").innerText = `$${totalVentas.toLocaleString()}`;
+    if(document.getElementById("dash-costos")) document.getElementById("dash-costos").innerText = `$${totalCostos.toLocaleString()}`;
+    if(document.getElementById("dash-ganancias")) document.getElementById("dash-ganancias").innerText = `$${totalGanancias.toLocaleString()}`;
+    
+    // Calcular el TOP 3 de más vendidos en el rango de fechas actual
+    calcularTopProductos(transaccionesFiltradas);
+}
+
+// 6. DETECCIÓN DE PRODUCTOS POPULARES (TOP 3)
+function calcularTopProductos(listaTransacciones) {
+    const conteo = {};
+    listaTransacciones.forEach(t => {
+        conteo[t.articulo] = (conteo[t.articulo] || 0) + 1;
+    });
+
+    const ordenados = Object.keys(conteo).map(name => ({
+        nombre: name,
+        ventas: conteo[name]
+    })).sort((a, b) => b.ventas - a.ventas).slice(0, 3);
+
+    const contenedorTop = document.getElementById("lista-top-productos");
+    if(contenedorTop) {
+        contenedorTop.innerHTML = "";
+        if(ordenados.length === 0) {
+            contenedorTop.innerHTML = `<p class="text-xs text-slate-400 italic">No hay registros en este periodo.</p>`;
+            return;
+        }
+        ordenados.forEach((item, index) => {
+            const div = document.createElement("div");
+            div.className = "flex justify-between items-center text-sm py-1 border-b border-dashed border-slate-100";
+            div.innerHTML = `
+                <span class="text-slate-700 font-medium">${index + 1}. ${item.nombre}</span>
+                <span class="bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full text-xs font-bold">${item.ventas} u.</span>
+            `;
+            contenedorTop.appendChild(div);
+        });
+    }
+}
+
+// 7. ALERTAS DE STOCK BAJO (< 3 UNIDADES)
+function verificarAlertasStock() {
+    const contenedorAlertas = document.getElementById("contenedor-alertas-stock");
+    if (!contenedorAlertas) return;
+    contenedorAlertas.innerHTML = "";
+
+    const criticos = productos.filter(p => p.stock <= 3);
+
+    if (criticos.length === 0) {
+        contenedorAlertas.innerHTML = `
+            <div class="p-3 bg-emerald-50 text-emerald-800 rounded-lg text-xs flex items-center gap-2">
+                <span>✅ ¡Excelente! Todo tu inventario cuenta con buen stock.</span>
+            </div>
+        `;
+        return;
+    }
+
+    criticos.forEach(p => {
+        const alerta = document.createElement("div");
+        alerta.className = `p-2 mb-2 rounded-lg text-xs flex justify-between items-center ${p.stock === 0 ? 'bg-red-50 text-red-900 border-l-4 border-red-500' : 'bg-amber-50 text-amber-900 border-l-4 border-amber-500'}`;
+        alerta.innerHTML = `
+            <span>⚠️ <strong>${p.nombre}</strong> - Quedan solo ${p.stock} unidades.</span>
+            <button onclick="abrirModalProducto('${p.id}')" class="underline font-semibold hover:text-purple-700">Surtir</button>
+        `;
+        contenedorAlertas.appendChild(alerta);
+    });
+}
+
+// 8. FUNCIONES AUXILIARES DE RENDERIZADO VISUAL
+function actualizarSelectoresDeProductos() {
+    const selectCombo = document.getElementById("combo-select-producto");
+    const selectVenta = document.getElementById("venta-select-item");
+
+    if (selectCombo) {
+        selectCombo.innerHTML = `<option value="">-- Seleccionar Cosmético --</option>`;
+        productos.forEach(p => {
+            selectCombo.innerHTML += `<option value="${p.id}">${p.nombre} (Cost: $${p.costo.toLocaleString()})</option>`;
+        });
+    }
+
+    if (selectVenta) {
+        selectVenta.innerHTML = `<option value="">-- Seleccionar Artículo --</option>`;
+        
+        const optGroupProd = document.createElement("optgroup");
+        optGroupProd.label = "Productos Simples";
+        productos.forEach(p => {
+            optGroupProd.innerHTML += `<option value="prod_${p.id}">${p.nombre} [Stock: ${p.stock}]</option>`;
+        });
+        
+        const optGroupCombo = document.createElement("optgroup");
+        optGroupCombo.label = "Kits y Combos Armados";
+        combos.forEach(c => {
+            optGroupCombo.innerHTML += `<option value="combo_${c.id}">${c.nombre} ($${c.precioVenta.toLocaleString()})</option>`;
+        });
+
+        selectVenta.appendChild(optGroupProd);
+        selectVenta.appendChild(optGroupCombo);
+    }
 }
 
 function actualizarListaVisualCombo() {
-    const wrapper = document.getElementById("items-combo-agregados");
-    wrapper.innerHTML = "";
-    let cost = 0;
-    productosEnComboTemporal.forEach((p, idx) => {
-        cost += p.costo * p.cantidad;
-        wrapper.innerHTML += `
-            <div class="flex justify-between items-center bg-slate-100 p-2 rounded-lg text-[11px]">
-                <span>${p.nombre} (x${p.cantidad})</span>
-                <button type="button" onclick="window.eliminarItemTemporalCombo(${idx})" class="text-rose-500 font-bold px-1">✕</button>
-            </div>`;
-    });
-    document.getElementById("combo-costo-calculado").textContent = `$${cost.toFixed(2)}`;
-}
-
-window.eliminarItemTemporalCombo = function(idx) { productosEnComboTemporal.splice(idx,1); actualizarListaVisualCombo(); };
-
-function renderizarInventario() {
-    const wrapper = document.getElementById("lista-inventario");
-    if(!wrapper) return;
-    wrapper.innerHTML = "";
-
-    // Renderizar Combos / Kits
-    if(combos.length > 0) {
-        wrapper.innerHTML += `<h4 class="text-xs font-black uppercase text-purple-400 tracking-wider mt-2 mb-1">Combos Especiales</h4>`;
-        combos.forEach(c => {
-            if(!c.activo && !usuarioActual) return; // Ocultar inactivos a clientes
-            wrapper.innerHTML += `
-                <div class="p-4 rounded-xl border bg-white flex gap-3 ${!c.activo ? 'opacity-50' : ''}">
-                    ${c.fotoUrl ? `<img src="${c.fotoUrl}" class="w-16 h-16 object-cover rounded-lg border">` : `<div class="w-16 h-16 bg-purple-50 text-purple-400 flex items-center justify-center rounded-lg"><i data-lucide="package"></i></div>`}
-                    <div class="flex-1 min-w-0">
-                        <h4 class="font-bold text-slate-800 text-sm">${c.nombre}</h4>
-                        <p class="text-xs text-slate-400 truncate">${c.descripcion || 'Sin descripción comercial.'}</p>
-                        <p class="text-xs font-black text-purple-700 mt-1">$${c.precioVenta.toFixed(2)}</p>
-                        ${usuarioActual ? `
-                            <p class="text-[10px] text-emerald-600 font-bold">Ganancia: +$${c.ganancia.toFixed(2)}</p>
-                        ` : ''}
-                    </div>
-                    <div class="flex flex-col justify-between items-end">
-                        <button onclick="window.lanzarMarketing('${c.id}', 'combo')" class="text-purple-600 bg-purple-50 p-1.5 rounded-lg border border-purple-100"><i data-lucide="megaphone" class="w-3.5 h-3.5"></i></button>
-                        ${usuarioActual ? `
-                            <div class="flex gap-1 mt-2">
-                                <button onclick="window.abrirEditarCombo('${c.id}')" class="text-slate-400"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
-                                <button onclick="window.eliminarComboNube('${c.id}')" class="text-rose-400"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-                            </div>
-                        ` : ''}
-                    </div>
-                </div>`;
-        });
-    }
-
-    // Renderizar Productos Individuales
-    if(productos.length > 0) {
-        wrapper.innerHTML += `<h4 class="text-xs font-black uppercase text-slate-400 tracking-wider mt-4 mb-1">Maquillaje y Accesorios</h4>`;
-        productos.forEach(p => {
-            if(!p.activo && !usuarioActual) return;
-            wrapper.innerHTML += `
-                <div class="p-4 rounded-xl border bg-white flex gap-3 ${!p.activo ? 'opacity-50' : ''}">
-                    ${p.fotoUrl ? `<img src="${p.fotoUrl}" class="w-16 h-16 object-cover rounded-lg border">` : `<div class="w-16 h-16 bg-slate-50 text-slate-400 flex items-center justify-center rounded-lg"><i data-lucide="box"></i></div>`}
-                    <div class="flex-1 min-w-0">
-                        <h4 class="font-bold text-slate-800 text-sm">${p.nombre}</h4>
-                        <p class="text-xs text-slate-400 truncate">${p.descripcion || 'Sin descripción.'}</p>
-                        <p class="text-xs font-black text-slate-800 mt-1">$${p.precio.toFixed(2)}</p>
-                        ${usuarioActual ? `<p class="text-[10px] text-purple-600">Costo: $${p.costo.toFixed(2)}</p>` : ''}
-                    </div>
-                    <div class="flex flex-col justify-between items-end">
-                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${p.stock > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}">${p.stock} Und</span>
-                        <div class="flex gap-1 mt-2">
-                            <button onclick="window.lanzarMarketing('${p.id}', 'prod')" class="text-purple-600 p-1"><i data-lucide="megaphone" class="w-3.5 h-3.5"></i></button>
-                            ${usuarioActual ? `
-                                <button onclick="window.abrirEditarProducto('${p.id}')" class="text-slate-400 p-1"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
-                                <button onclick="window.eliminarProductoNube('${p.id}')" class="text-rose-400 p-1"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-                            ` : ''}
-                        </div>
-                    </div>
-                </div>`;
-        });
-    }
-    lucide.createIcons();
-}
-
-function renderizarBalance() {
-    if(!usuarioActual) return; // Los clientes no ejecutan cálculos de caja
-    let totalVentas = 0, totalCostos = 0, gananciaNetaReal = 0, totalPorCobrar = 0;
-
-    transacciones.forEach(tx => {
-        totalCostos += tx.costoReal;
-        if (tx.estado === "pendiente") { totalPorCobrar += tx.totalRecibido; } 
-        else { totalVentas += tx.totalRecibido; gananciaNetaReal += tx.gananciaLimpia; }
+    const lista = document.getElementById("combo-lista-productos-temporal");
+    if(!lista) return;
+    lista.innerHTML = "";
+    
+    let costoAcumulado = 0;
+    productosEnComboTemporal.forEach((p, index) => {
+        costoAcumulado += (p.costo * p.cantidad);
+        const li = document.createElement("li");
+        li.className = "flex justify-between items-center text-xs bg-slate-50 p-2 rounded border border-slate-100";
+        li.innerHTML = `
+            <span>${p.nombre} (x${p.cantidad})</span>
+            <button type="button" class="text-red-500 hover:text-red-700 font-bold" onclick="quitarItemComboTemporal(${index})">Eliminar</button>
+        `;
+        lista.appendChild(li);
     });
 
-    if(document.getElementById("bal-ganancia-neta")) document.getElementById("bal-ganancia-neta").textContent = `$${gananciaNetaReal.toFixed(2)}`;
-    if(document.getElementById("bal-total-ventas")) document.getElementById("bal-total-ventas").textContent = `+$${totalVentas.toFixed(2)}`;
-    if(document.getElementById("bal-total-costos")) document.getElementById("bal-total-costos").textContent = `-$${totalCostos.toFixed(2)}`;
-    if(document.getElementById("bal-total-deudas")) document.getElementById("bal-total-deudas").textContent = `$${totalPorCobrar.toFixed(2)}`;
-
-    const listaTx = document.getElementById("lista-transacciones");
-    if(!listaTx) return;
-    listaTx.innerHTML = "";
-
-    transacciones.forEach(tx => {
-        const esPendiente = tx.estado === "pendiente";
-        listaTx.innerHTML += `
-            <div class="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center text-xs shadow-xs">
-                <div>
-                    <div class="flex items-center gap-1.5">
-                        <p class="font-bold text-slate-800">${tx.articulo}</p>
-                        <span class="text-[8px] font-extrabold px-1 rounded ${esPendiente ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}">${tx.estado}</span>
-                    </div>
-                    <p class="text-[9px] text-slate-400">${tx.fecha}</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <p class="font-bold ${esPendiente ? 'text-amber-600' : 'text-emerald-600'}">+$${tx.totalRecibido.toFixed(2)}</p>
-                    <button onclick="window.eliminarTransaccionNube('${tx.id}')" class="text-rose-400 ml-1"><i data-lucide="trash" class="w-3.5 h-3.5"></i></button>
-                </div>
-            </div>`;
-    });
-    lucide.createIcons();
+    const infoCosto = document.getElementById("combo-costo-calculado");
+    if(infoCosto) infoCosto.innerText = `Costo base de este Kit: $${costoAcumulado.toLocaleString()}`;
 }
 
-// Mapeos globales de acciones en ventana para los botones inyectados en HTML
-window.abrirEditarProducto = (id) => abrirModalProducto(id);
-window.abrirEditarCombo = (id) => abrirModalCombo(id);
-window.eliminarProductoNube = async (id) => { if(confirm("¿Eliminar producto?")) await deleteDoc(doc(db, "productos", id)); };
-window.eliminarComboNube = async (id) => { if(confirm("¿Eliminar combo?")) await deleteDoc(doc(db, "combos", id)); };
-window.eliminarTransaccionNube = async (id) => { if(confirm("¿Eliminar registro de venta?")) await deleteDoc(doc(db, "transacciones", id)); };
+window.quitarItemComboTemporal = function(index) {
+    productosEnComboTemporal.splice(index, 1);
+    actualizarListaVisualCombo();
+}
 
-window.lanzarMarketing = function(id, tipo) {
-    let t = "", d = "", p = 0;
-    if(tipo === 'combo') {
-        const c = combos.find(i => i.id === id); if(!c) return;
-        t = c.nombre; p = c.precioVenta; d = c.descripcion || "¡Kit exclusivo de cosméticos seleccionados especialmente para ti!";
-    } else {
-        const pr = productos.find(i => i.id === id); if(!pr) return;
-        t = pr.nombre; p = pr.precio; d = pr.descripcion || "Hermoso producto de nuestro catálogo. Calidad garantizada para resaltar tu belleza.";
-    }
-    document.getElementById("mkt-preview-titulo").textContent = t;
-    document.getElementById("mkt-preview-desc").textContent = d;
-    document.getElementById("mkt-preview-precio").textContent = `$${p.toFixed(2)}`;
-    document.getElementById("mkt-texto-copy").value = `✨ ¡DISPONIBLE EN DAESMI! ✨\n\n🛍️ *${t}*\n\n${d}\n\n💵 *Precio:* $${p.toFixed(2)}\n\nEscríbenos para agendar el tuyo hoy mismo. 💕`;
-    document.getElementById("modal-marketing").classList.replace("hidden", "flex");
-    lucide.createIcons();
-};
+function renderizarTablaInventario() {
+    const tablaBody = document.getElementById("tabla-inventario-body");
+    if(!tablaBody) return;
+    tablaBody.innerHTML = "";
+
+    // Renderizar Productos Simples
+    productos.forEach(p => {
+        const tr = document.createElement("tr");
+        tr.className = "border-b border-slate-100 hover:bg-slate-50/50 text-sm";
+        tr.innerHTML = `
+            <td class="py-3 px-2 font-medium text-slate-800">${p.nombre}</td>
+            <td class="py-3 px-2 text-slate-400 text-xs hidden md:table-cell">${p.descripcion || '-'}</td>
+            <td class="py-3 px-2 text-slate-600">$${p.costo.toLocaleString()}</td>
+            <td class="py-3 px-2 font-semibold text-purple-700">$${p.precio.toLocaleString()}</td>
+            <td class="py-3 px-2"><span class="font-bold ${p.stock <= 3 ? 'text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded' : 'text-slate-700'}">${p.stock} u.</span></td>
+            <td class="py-3 px-2 text-right">
+                <button onclick="abrirModalProducto('${p.id}')" class="text-purple-600 hover:text-purple-900 font-medium text-xs bg-purple-50 hover:bg-purple-100 px-2 py-1 rounded">Editar</button>
+            </td>
+        `;
+        tablaBody.appendChild(tr);
+    });
+
+    // Renderizar Kits / Combos
+    combos.forEach(c => {
+        const tr = document.createElement("tr");
+        tr.className = "border-b border-purple-50 bg-purple-50/20 hover:bg-purple-50/40 text-sm";
+        tr.innerHTML = `
+            <td class="py-3 px-2 font-semibold text-slate-800"><span class="bg-purple-200 text-purple-800 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded mr-1">Kit</span>${c.nombre}</td>
+            <td class="py-3 px-2 text-slate-400 text-xs hidden md:table-cell">${c.descripcion || '-'}</td>
+            <td class="py-3 px-2 text-slate-600">$${c.costoTotal.toLocaleString()}</td>
+            <td class="py-3 px-2 font-bold text-purple-700">$${c.precioVenta.toLocaleString()}</td>
+            <td class="py-3 px-2"><span class="text-xs text-slate-400 italic">Compuesto</span></td>
+            <td class="py-3 px-2 text-right">
+                <button onclick="abrirModalCombo('${c.id}')" class="text-purple-600 hover:text-purple-900 font-medium text-xs bg-purple-100 hover:bg-purple-200 px-2 py-1 rounded">Editar Kit</button>
+            </td>
+        `;
+        tablaBody.appendChild(tr);
+    });
+}
