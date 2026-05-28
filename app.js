@@ -28,7 +28,7 @@ let transacciones = [];
 let idElementoEdicion = null;
 let productosEnComboTemporal = [];
 let filtroFechaActual = "mes"; 
-letisAdmin = false;
+let isAdmin = false;
 
 // Al arrancar la página
 document.addEventListener("DOMContentLoaded", () => {
