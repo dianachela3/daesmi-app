@@ -305,7 +305,7 @@ function abrirModalProducto(id = null) {
 }
 
 function abrirModalCombo(id = null) {
-    idElementionEdicion = id;
+    idElementoEdicion = id;
     document.getElementById("form-combo").reset();
     productosEnComboTemporal = [];
     actualizarListaVisualCombo();
