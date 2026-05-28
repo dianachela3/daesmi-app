@@ -1,5 +1,5 @@
 // =========================================================================
-// DAESMI · Cosmetics & Accessories - Sistema Integral de Ventas y Caja
+// DAESMI · Cosmetics & Accessories - Sistema Integral de Ventas y Caja (FIXED)
 // =========================================================================
 
 let productos = [];
@@ -11,8 +11,8 @@ let productosEnComboTemporal = [];
 let idElementoEdicion = null; 
 
 document.addEventListener("DOMContentLoaded", () => {
-    inicializarNavegacion();
     cargarDatosDesdeStorage();
+    inicializarNavegacion();
     inicializarModales();
     renderizarInventario();
     renderizarBalance();
@@ -64,12 +64,17 @@ function inicializarNavegacion() {
     if (btnInventario) btnInventario.addEventListener("click", () => cambiarVista("view-inventario", btnInventario));
     if (btnAjustes) btnAjustes.addEventListener("click", () => cambiarVista("view-ajustes", btnAjustes));
     
-    // Accesos rápidos desde el balance
-    document.getElementById("btn-dash-venta").addEventListener("click", () => abrirModalVenta());
-    document.getElementById("btn-dash-combo").addEventListener("click", () => {
-        cambiarVista("view-inventario", btnInventario);
-        abrirModalCombo();
-    });
+    // Accesos rápidos desde el balance protegidos contra nulos
+    const dashVenta = document.getElementById("btn-dash-venta");
+    const dashCombo = document.getElementById("btn-dash-combo");
+
+    if (dashVenta) dashVenta.addEventListener("click", () => abrirModalVenta());
+    if (dashCombo) {
+        dashCombo.addEventListener("click", () => {
+            cambiarVista("view-inventario", btnInventario);
+            abrirModalCombo();
+        });
+    }
 }
 
 function inicializarModales() {
@@ -80,143 +85,151 @@ function inicializarModales() {
     const formCombo = document.getElementById("form-combo");
     const formVenta = document.getElementById("form-venta");
 
-    // Abridores
-    document.getElementById("btn-nuevo-producto").addEventListener("click", () => abrirModalProducto());
-    document.getElementById("btn-nuevo-combo").addEventListener("click", () => abrirModalCombo());
+    // Abridores safely
+    const btnNuevoProd = document.getElementById("btn-nuevo-producto");
+    const btnNuevoCombo = document.getElementById("btn-nuevo-combo");
+
+    if (btnNuevoProd) btnNuevoProd.addEventListener("click", () => abrirModalProducto());
+    if (btnNuevoCombo) btnNuevoCombo.addEventListener("click", () => abrirModalCombo());
     
     // Cerradores
-    document.getElementById("btn-cerrar-modal-prod").addEventListener("click", () => modalProd.classList.replace("flex", "hidden"));
-    document.getElementById("btn-cerrar-modal-combo").addEventListener("click", () => modalCombo.classList.replace("flex", "hidden"));
-    document.getElementById("btn-cerrar-modal-venta").addEventListener("click", () => modalVenta.classList.replace("flex", "hidden"));
+    if (document.getElementById("btn-cerrar-modal-prod")) document.getElementById("btn-cerrar-modal-prod").addEventListener("click", () => modalProd.classList.replace("flex", "hidden"));
+    if (document.getElementById("btn-cerrar-modal-combo")) document.getElementById("btn-cerrar-modal-combo").addEventListener("click", () => modalCombo.classList.replace("flex", "hidden"));
+    if (document.getElementById("btn-cerrar-modal-venta")) document.getElementById("btn-cerrar-modal-venta").addEventListener("click", () => modalVenta.classList.replace("flex", "hidden"));
 
     // Guardar Producto
-    formProducto.addEventListener("submit", (e) => {
-        e.preventDefault();
-        const nombre = document.getElementById("prod-nombre").value.trim();
-        const costo = parseFloat(document.getElementById("prod-costo").value) || 0;
-        const precio = parseFloat(document.getElementById("prod-precio").value) || 0;
-        const stock = parseInt(document.getElementById("prod-stock").value) || 0;
+    if (formProducto) {
+        formProducto.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const nombre = document.getElementById("prod-nombre").value.trim();
+            const costo = parseFloat(document.getElementById("prod-costo").value) || 0;
+            const precio = parseFloat(document.getElementById("prod-precio").value) || 0;
+            const stock = parseInt(document.getElementById("prod-stock").value) || 0;
 
-        if (idElementoEdicion) {
-            const index = productos.findIndex(p => p.id === idElementoEdicion);
-            if (index !== -1) { productos[index] = { ...productos[index], nombre, costo, precio, stock }; }
-        } else {
-            productos.push({ id: "prod_" + Date.now(), nombre, costo, precio, stock, activo: true });
-        }
-        guardarProductosEnStorage();
-        renderizarInventario();
-        modalProd.classList.replace("flex", "hidden");
-    });
+            if (idElementoEdicion) {
+                const index = productos.findIndex(p => p.id === idElementoEdicion);
+                if (index !== -1) { productos[index] = { ...productos[index], nombre, costo, precio, stock }; }
+            } else {
+                productos.push({ id: "prod_" + Date.now(), nombre, costo, precio, stock, activo: true });
+            }
+            guardarProductosEnStorage();
+            renderizarInventario();
+            modalProd.classList.replace("flex", "hidden");
+        });
+    }
 
     // Añadir ítems al combo temporal
-    document.getElementById("btn-agregar-item-combo").addEventListener("click", () => {
-        const select = document.getElementById("combo-select-producto");
-        const id = select.value;
-        if (!id) return;
-        const prod = productos.find(p => p.id === id);
-        if (!prod) return;
+    const btnAgregarItemCombo = document.getElementById("btn-agregar-item-combo");
+    if (btnAgregarItemCombo) {
+        btnAgregarItemCombo.addEventListener("click", () => {
+            const select = document.getElementById("combo-select-producto");
+            const id = select.value;
+            if (!id) return;
+            const prod = productos.find(p => p.id === id);
+            if (!prod) return;
 
-        const existe = productosEnComboTemporal.find(p => p.id === id);
-        if (existe) { existe.cantidad += 1; } else { productosEnComboTemporal.push({ id: prod.id, nombre: prod.nombre, costo: prod.costo, cantidad: 1 }); }
-        actualizarTablaItemsCombo();
-    });
+            const existe = productosEnComboTemporal.find(p => p.id === id);
+            if (existe) { existe.cantidad += 1; } else { productosEnComboTemporal.push({ id: prod.id, nombre: prod.nombre, costo: prod.costo, cantidad: 1 }); }
+            actualizarTablaItemsCombo();
+        });
+    }
 
-    document.getElementById("combo-precio-venta").addEventListener("input", calcularGananciaComboLive);
+    const inputPrecioCombo = document.getElementById("combo-precio-venta");
+    if (inputPrecioCombo) inputPrecioCombo.addEventListener("input", calcularGananciaComboLive);
 
     // Guardar Combo
-    formCombo.addEventListener("submit", (e) => {
-        e.preventDefault();
-        if (productosEnComboTemporal.length === 0) return alert("Añade productos al combo.");
-        const nombre = document.getElementById("combo-nombre").value.trim();
-        const precioVenta = parseFloat(document.getElementById("combo-precio-venta").value) || 0;
-        const costoTotal = productosEnComboTemporal.reduce((sum, p) => sum + (p.costo * p.cantidad), 0);
+    if (formCombo) {
+        formCombo.addEventListener("submit", (e) => {
+            e.preventDefault();
+            if (productosEnComboTemporal.length === 0) return alert("Añade productos al combo.");
+            const nombre = document.getElementById("combo-nombre").value.trim();
+            const precioVenta = parseFloat(document.getElementById("combo-precio-venta").value) || 0;
+            const costoTotal = productosEnComboTemporal.reduce((sum, p) => sum + (p.costo * p.cantidad), 0);
 
-        if (idElementoEdicion) {
-            const index = combos.findIndex(c => c.id === idElementoEdicion);
-            if (index !== -1) { combos[index] = { ...combos[index], nombre, precioVenta, costoTotal, ganancia: precioVenta - costoTotal, productos: [...productosEnComboTemporal] }; }
-        } else {
-            combos.push({ id: "combo_" + Date.now(), nombre, precioVenta, costoTotal, ganancia: precioVenta - costoTotal, productos: [...productosEnComboTemporal], activo: true });
-        }
-        guardosCombosYActualizar();
-        modalCombo.classList.replace("flex", "hidden");
-    });
+            if (idElementoEdicion) {
+                const index = combos.findIndex(c => c.id === idElementoEdicion);
+                if (index !== -1) { combos[index] = { ...combos[index], nombre, precioVenta, costoTotal, ganancia: precioVenta - costoTotal, productos: [...productosEnComboTemporal] }; }
+            } else {
+                combos.push({ id: "combo_" + Date.now(), nombre, precioVenta, costoTotal, ganancia: precioVenta - costoTotal, productos: [...productosEnComboTemporal], activo: true });
+            }
+            guardosCombosYActualizar();
+            modalCombo.classList.replace("flex", "hidden");
+        });
+    }
 
-    // PROCESAR VENTA (La descarga inteligente)
-    formVenta.addEventListener("submit", (e) => {
-        e.preventDefault();
-        const itemSeleccionado = document.getElementById("venta-select-item").value;
-        if (!itemSeleccionado) return;
+    // PROCESAR VENTA
+    if (formVenta) {
+        formVenta.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const itemSeleccionado = document.getElementById("venta-select-item").value;
+            if (!itemSeleccionado) return;
 
-        let costoTotalVenta = 0;
-        let precioCobrado = parseFloat(document.getElementById("venta-precio-final").value) || 0;
-        let nombreArticulo = "";
+            let costoTotalVenta = 0;
+            let precioCobrado = parseFloat(document.getElementById("venta-precio-final").value) || 0;
+            let nombreArticulo = "";
 
-        if (itemSeleccionado.startsWith("prod_")) {
-            // Venta de un Producto Individual
-            const prod = productos.find(p => p.id === itemSeleccionado);
-            if (!prod) return;
-            if (prod.stock < 1) return alert(`No tienes stock suficiente de ${prod.nombre}`);
-            
-            prod.stock -= 1; // Descargar stock
-            costoTotalVenta = prod.costo;
-            nombreArticulo = prod.nombre;
+            if (itemSeleccionado.startsWith("prod_")) {
+                const prod = productos.find(p => p.id === itemSeleccionado);
+                if (!prod) return;
+                if (prod.stock < 1) return alert(`No tienes stock suficiente de ${prod.nombre}`);
+                
+                prod.stock -= 1;
+                costoTotalVenta = prod.costo;
+                nombreArticulo = prod.nombre;
 
-        } else if (itemSeleccionado.startsWith("combo_")) {
-            // Venta de un Combo Kit
-            const combo = combos.find(c => c.id === itemSeleccionado);
-            if (!combo) return;
+            } else if (itemSeleccionado.startsWith("combo_")) {
+                const combo = combos.find(c => c.id === itemSeleccionado);
+                if (!combo) return;
 
-            // Verificar si hay stock de todos los componentes antes de restar nada
-            for (let item of combo.productos) {
-                const pOriginal = productos.find(p => p.id === item.id);
-                if (!pOriginal || pOriginal.stock < item.cantidad) {
-                    return alert(`No puedes vender el combo. Stock insuficiente de: ${item.nombre} (Requieres ${item.cantidad}, tienes ${pOriginal ? pOriginal.stock : 0})`);
+                for (let item of combo.productos) {
+                    const pOriginal = productos.find(p => p.id === item.id);
+                    if (!pOriginal || pOriginal.stock < item.cantidad) {
+                        return alert(`Stock insuficiente de: ${item.nombre}`);
+                    }
                 }
+
+                combo.productos.forEach(item => {
+                    const pOriginal = productos.find(p => p.id === item.id);
+                    if (pOriginal) pOriginal.stock -= item.cantidad;
+                });
+
+                costoTotalVenta = combo.costoTotal;
+                nombreArticulo = `[Combo] ${combo.nombre}`;
             }
 
-            // Descargar stock de cada componente matemático del combo
-            combo.productos.forEach(item => {
-                const pOriginal = productos.find(p => p.id === item.id);
-                if (pOriginal) pOriginal.stock -= item.cantidad;
+            transacciones.unshift({
+                id: "tx_" + Date.now(),
+                fecha: new Date().toLocaleString(),
+                articulo: nombreArticulo,
+                totalRecibido: precioCobrado,
+                costoReal: costoTotalVenta,
+                gananciaLimpia: precioCobrado - costoTotalVenta
             });
 
-            costoTotalVenta = combo.costoTotal;
-            nombreArticulo = `[Combo] ${combo.nombre}`;
-        }
-
-        // Registrar la transacción oficial en caja
-        transacciones.unshift({
-            id: "tx_" + Date.now(),
-            fecha: new Date().toLocaleString(),
-            articulo: nombreArticulo,
-            totalRecibido: precioCobrado,
-            costoReal: costoTotalVenta,
-            gananciaLimpia: precioCobrado - costoTotalVenta
+            guardarProductosEnStorage();
+            guardarTransaccionesEnStorage();
+            
+            renderizarBalance();
+            renderizarInventario();
+            modalVenta.classList.replace("flex", "hidden");
+            formVenta.reset();
         });
+    }
 
-        guardarProductosEnStorage();
-        guardarTransaccionesEnStorage();
-        
-        renderizarBalance();
-        renderizarInventario();
-        modalVenta.classList.replace("flex", "hidden");
-        formVenta.reset();
-    });
-
-    // Auto-rellenar precio sugerido al elegir qué vender
-    document.getElementById("venta-select-item").addEventListener("change", (e) => {
-        const id = e.target.value;
-        let precioSugerido = 0;
-        if (id.startsWith("prod_")) {
-            precioSugerido = productos.find(p => p.id === id)?.precio || 0;
-        } else if (id.startsWith("combo_")) {
-            precioSugerido = combos.find(c => c.id === id)?.precioVenta || 0;
-        }
-        document.getElementById("venta-precio-final").value = precioSugerido;
-    });
+    const selectVentaItem = document.getElementById("venta-select-item");
+    if (selectVentaItem) {
+        selectVentaItem.addEventListener("change", (e) => {
+            const id = e.target.value;
+            let precioSugerido = 0;
+            if (id.startsWith("prod_")) {
+                precioSugerido = productos.find(p => p.id === id)?.precio || 0;
+            } else if (id.startsWith("combo_")) {
+                precioSugerido = combos.find(c => c.id === id)?.precioVenta || 0;
+            }
+            document.getElementById("venta-precio-final").value = precioSugerido;
+        });
+    }
 }
-
-// --- CONTROLADORES ESPECÍFICOS DE APERTURA ---
 
 function abrirModalProducto(id = null) {
     idElementoEdicion = id;
@@ -263,14 +276,12 @@ function abrirModalVenta() {
     const select = document.getElementById("venta-select-item");
     select.innerHTML = '<option value="">-- ¿Qué vas a vender? --</option>';
 
-    // Cargar combos activos
     if (combos.filter(c => c.activo).length > 0) {
         select.innerHTML += `<optgroup label="✨ COMBOS / KITS">`;
         combos.filter(c => c.activo).forEach(c => select.innerHTML += `<option value="${c.id}">${c.nombre} ($${c.precioVenta})</option>`);
         select.innerHTML += `</optgroup>`;
     }
 
-    // Cargar productos activos con stock disponible
     if (productos.filter(p => p.activo && p.stock > 0).length > 0) {
         select.innerHTML += `<optgroup label="💄 PRODUCTOS INDIVIDUALES">`;
         productos.filter(p => p.activo && p.stock > 0).forEach(p => select.innerHTML += `<option value="${p.id}">${p.nombre} (Stock: ${p.stock})</option>`);
@@ -288,7 +299,7 @@ function actualizarTablaItemsCombo() {
         costoTotal += p.costo * p.cantidad;
         contenedor.innerHTML += `
             <div class="flex justify-between items-center bg-slate-100 p-2 rounded-lg text-[11px]">
-                <div><p class="font-bold text-slate-700">${p.nombre}</p><p class="text-slate-400">${p.cantidad}x | Total: $${(p.costo * p.custom = p.costo * p.cantidad).toFixed(2)}</p></div>
+                <div><p class="font-bold text-slate-700">${p.nombre}</p><p class="text-slate-400">${p.cantidad}x | Total: $${(p.costo * p.cantidad).toFixed(2)}</p></div>
                 <button type="button" onclick="eliminarItemCombo(${index})" class="text-rose-500 font-bold px-1 cursor-pointer">✕</button>
             </div>`;
     });
@@ -306,8 +317,6 @@ function calcularGananciaComboLive() {
 
 function guardosCombosYActualizar() { guardarCombosEnStorage(); renderizarInventario(); }
 
-// --- RENDERIZADO FINANCIERO (PANTALLA DE BALANCE) ---
-
 function renderizarBalance() {
     let totalVentas = 0;
     let totalCostos = 0;
@@ -319,12 +328,14 @@ function renderizarBalance() {
         gananciaNeta += tx.gananciaLimpia;
     });
 
-    // Inyectar sumas en las tarjetas superiores
-    document.getElementById("bal-ganancia-neta").textContent = `$${gananciaNeta.toFixed(2)}`;
-    document.getElementById("bal-total-ventas").textContent = `+$${totalVentas.toFixed(2)}`;
-    document.getElementById("bal-total-costos").textContent = `-$${totalCostos.toFixed(2)}`;
+    const labelGanancia = document.getElementById("bal-ganancia-neta");
+    const labelVentas = document.getElementById("bal-total-ventas");
+    const labelCostos = document.getElementById("bal-total-costos");
 
-    // Dibujar historial de transacciones en lista
+    if (labelGanancia) labelGanancia.textContent = `$${gananciaNeta.toFixed(2)}`;
+    if (labelVentas) labelVentas.textContent = `+$${totalVentas.toFixed(2)}`;
+    if (labelCostos) labelCostos.textContent = `-$${totalCostos.toFixed(2)}`;
+
     const contenedorHistorial = document.getElementById("lista-transacciones");
     if (!contenedorHistorial) return;
 
@@ -356,7 +367,6 @@ function renderizarBalance() {
     lucide.createIcons();
 }
 
-// --- ACCIONES DE INVENTARIO ---
 window.editarProducto = (id) => abrirModalProducto(id);
 window.editarCombo = (id) => abrirModalCombo(id);
 window.conmutarEstadoProducto = (id) => { const i = productos.findIndex(p => p.id === id); if(i!==-1){ productos[i].activo = !productos[i].activo; guardarProductosEnStorage(); renderizarInventario(); } };
