@@ -1,12 +1,11 @@
 // =========================================================================
-// DAESMI · Cosmetics & Accessories - Sistema Integral de Ventas y Caja (FIXED)
+// DAESMI · Cosmetics & Accessories - Sistema Integral de Ventas y Caja (CON FIADOS)
 // =========================================================================
 
 let productos = [];
 let combos = [];
 let transacciones = [];
 
-// Estado temporal para el armado de combos
 let productosEnComboTemporal = [];
 let idElementoEdicion = null; 
 
@@ -61,10 +60,9 @@ function inicializarNavegacion() {
     }
 
     if (btnBalance) btnBalance.addEventListener("click", () => { cambiarVista("view-balance", btnBalance); renderizarBalance(); });
-    if (btnInventario) btnInventario.addEventListener("click", () => cambiarVista("view-inventario", btnInventario));
+    if (btnInventario) btnInventario.addEventListener("click", () => { cambiarVista("view-inventario", btnInventario); renderizarInventario(); });
     if (btnAjustes) btnAjustes.addEventListener("click", () => cambiarVista("view-ajustes", btnAjustes));
     
-    // Accesos rápidos desde el balance protegidos contra nulos
     const dashVenta = document.getElementById("btn-dash-venta");
     const dashCombo = document.getElementById("btn-dash-combo");
 
@@ -85,19 +83,16 @@ function inicializarModales() {
     const formCombo = document.getElementById("form-combo");
     const formVenta = document.getElementById("form-venta");
 
-    // Abridores safely
     const btnNuevoProd = document.getElementById("btn-nuevo-producto");
     const btnNuevoCombo = document.getElementById("btn-nuevo-combo");
 
     if (btnNuevoProd) btnNuevoProd.addEventListener("click", () => abrirModalProducto());
     if (btnNuevoCombo) btnNuevoCombo.addEventListener("click", () => abrirModalCombo());
     
-    // Cerradores
     if (document.getElementById("btn-cerrar-modal-prod")) document.getElementById("btn-cerrar-modal-prod").addEventListener("click", () => modalProd.classList.replace("flex", "hidden"));
     if (document.getElementById("btn-cerrar-modal-combo")) document.getElementById("btn-cerrar-modal-combo").addEventListener("click", () => modalCombo.classList.replace("flex", "hidden"));
     if (document.getElementById("btn-cerrar-modal-venta")) document.getElementById("btn-cerrar-modal-venta").addEventListener("click", () => modalVenta.classList.replace("flex", "hidden"));
 
-    // Guardar Producto
     if (formProducto) {
         formProducto.addEventListener("submit", (e) => {
             e.preventDefault();
@@ -118,7 +113,6 @@ function inicializarModales() {
         });
     }
 
-    // Añadir ítems al combo temporal
     const btnAgregarItemCombo = document.getElementById("btn-agregar-item-combo");
     if (btnAgregarItemCombo) {
         btnAgregarItemCombo.addEventListener("click", () => {
@@ -137,7 +131,6 @@ function inicializarModales() {
     const inputPrecioCombo = document.getElementById("combo-precio-venta");
     if (inputPrecioCombo) inputPrecioCombo.addEventListener("input", calcularGananciaComboLive);
 
-    // Guardar Combo
     if (formCombo) {
         formCombo.addEventListener("submit", (e) => {
             e.preventDefault();
@@ -157,12 +150,14 @@ function inicializarModales() {
         });
     }
 
-    // PROCESAR VENTA
+    // PROCESAR VENTA (MODIFICADA PARA INCLUIR ESTADO DE PAGO)
     if (formVenta) {
         formVenta.addEventListener("submit", (e) => {
             e.preventDefault();
             const itemSeleccionado = document.getElementById("venta-select-item").value;
             if (!itemSeleccionado) return;
+
+            const estadoPago = document.getElementById("venta-estado-pago").value; // 'pagado' o 'pendiente'
 
             let costoTotalVenta = 0;
             let precioCobrado = parseFloat(document.getElementById("venta-precio-final").value) || 0;
@@ -199,11 +194,12 @@ function inicializarModales() {
 
             transacciones.unshift({
                 id: "tx_" + Date.now(),
-                fecha: new Date().toLocaleString(),
+                fecha: new Date().toLocaleString("es-CO", { hour12: true, month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' }),
                 articulo: nombreArticulo,
                 totalRecibido: precioCobrado,
                 costoReal: costoTotalVenta,
-                gananciaLimpia: precioCobrado - costoTotalVenta
+                gananciaLimpia: precioCobrado - costoTotalVenta,
+                estado: estadoPago // Guarda si se pagó o no
             });
 
             guardarProductosEnStorage();
@@ -317,24 +313,50 @@ function calcularGananciaComboLive() {
 
 function guardosCombosYActualizar() { guardarCombosEnStorage(); renderizarInventario(); }
 
+// NUEVAS FUNCIONES EXPUESTAS PARA CONTROL DE OPERACIONES
+window.eliminarTransaccion = function(id) {
+    if (confirm("¿Estás segura de eliminar esta venta? Esto no devolverá automáticamente los productos al inventario, pero limpiará las cuentas de caja.")) {
+        transacciones = transacciones.filter(tx => tx.id !== id);
+        guardarTransaccionesEnStorage();
+        renderizarBalance();
+    }
+};
+
+window.marcarComoPagada = function(id) {
+    const idx = transacciones.findIndex(tx => tx.id === id);
+    if (idx !== -1) {
+        transacciones[idx].estado = "pagado";
+        guardarTransaccionesEnStorage();
+        renderizarBalance();
+    }
+};
+
 function renderizarBalance() {
     let totalVentas = 0;
     let totalCostos = 0;
-    let gananciaNeta = 0;
+    let gananciaNetaReal = 0; 
+    let totalPorCobrar = 0;
 
     transacciones.forEach(tx => {
-        totalVentas += tx.totalRecibido;
-        totalCostos += tx.costoReal;
-        gananciaNeta += tx.gananciaLimpia;
+        totalCostos += tx.costoReal; // La inversión ya se hizo de todos modos
+        
+        if (tx.estado === "pendiente") {
+            totalPorCobrar += tx.totalRecibido;
+        } else {
+            totalVentas += tx.totalRecibido;
+            gananciaNetaReal += tx.gananciaLimpia;
+        }
     });
 
     const labelGanancia = document.getElementById("bal-ganancia-neta");
     const labelVentas = document.getElementById("bal-total-ventas");
     const labelCostos = document.getElementById("bal-total-costos");
+    const labelDeudas = document.getElementById("bal-total-deudas");
 
-    if (labelGanancia) labelGanancia.textContent = `$${gananciaNeta.toFixed(2)}`;
+    if (labelGanancia) labelGanancia.textContent = `$${gananciaNetaReal.toFixed(2)}`;
     if (labelVentas) labelVentas.textContent = `+$${totalVentas.toFixed(2)}`;
     if (labelCostos) labelCostos.textContent = `-$${totalCostos.toFixed(2)}`;
+    if (labelDeudas) labelDeudas.textContent = `$${totalPorCobrar.toFixed(2)}`;
 
     const contenedorHistorial = document.getElementById("lista-transacciones");
     if (!contenedorHistorial) return;
@@ -350,15 +372,37 @@ function renderizarBalance() {
 
     let html = '<div class="space-y-2">';
     transacciones.forEach(tx => {
+        const esPendiente = tx.estado === "pendiente";
+        
         html += `
-            <div class="bg-white p-3 rounded-xl border border-slate-100 shadow-xs flex justify-between items-center text-xs">
-                <div>
-                    <p class="font-bold text-slate-800">${tx.articulo}</p>
+            <div class="bg-white p-3 rounded-xl border ${esPendiente ? 'border-amber-200 bg-amber-50/20' : 'border-slate-100'} shadow-xs flex justify-between items-center text-xs">
+                <div class="space-y-1">
+                    <div class="flex items-center gap-1.5">
+                        <p class="font-bold text-slate-800">${tx.articulo}</p>
+                        <span class="px-1.5 py-0.2 text-[8px] font-extrabold rounded-sm uppercase ${esPendiente ? 'bg-amber-100 text-amber-700 border border-amber-300' : 'bg-emerald-100 text-emerald-700'}">
+                            ${esPendiente ? 'Debe' : 'Pago'}
+                        </span>
+                    </div>
                     <p class="text-[10px] text-slate-400">${tx.fecha}</p>
                 </div>
-                <div class="text-right">
-                    <p class="font-bold text-emerald-600">+$${tx.totalRecibido.toFixed(2)}</p>
-                    <p class="text-[10px] text-slate-400">Ganancia: +$${tx.gananciaLimpia.toFixed(2)}</p>
+                
+                <div class="flex items-center gap-3">
+                    <div class="text-right">
+                        <p class="font-bold ${esPendiente ? 'text-amber-600' : 'text-emerald-600'}">+$${tx.totalRecibido.toFixed(2)}</p>
+                        <p class="text-[9px] text-slate-400">Ganancia: +$${tx.gananciaLimpia.toFixed(2)}</p>
+                    </div>
+                    
+                    <!-- Botonera Operativa de Venta -->
+                    <div class="flex items-center gap-1 border-l pl-2 border-slate-200">
+                        ${esPendiente ? `
+                            <button onclick="marcarComoPagada('${tx.id}')" title="Marcar como pagado" class="text-emerald-600 bg-emerald-50 hover:bg-emerald-100 p-1.5 rounded-lg border border-emerald-200 cursor-pointer transition-colors">
+                                <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                            </button>
+                        ` : ''}
+                        <button onclick="eliminarTransaccion('${tx.id}')" title="Eliminar registro" class="text-rose-500 hover:text-rose-700 hover:bg-rose-50 p-1.5 rounded-lg cursor-pointer transition-colors">
+                            <i data-lucide="trash" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
                 </div>
             </div>`;
     });
@@ -389,7 +433,7 @@ function renderizarInventario() {
                 <div class="p-4 rounded-xl border ${c.activo ? 'bg-gradient-to-r from-fuchsia-50 to-purple-50 border-purple-100' : 'bg-slate-50 border-slate-200 opacity-60'}">
                     <div class="flex justify-between items-start">
                         <div>
-                            <span class="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${c.activo ? 'bg-purple-600 text-white' : 'bg-slate-400 text-white'}">${c.activo ? 'Combo Activo' : 'Inactivo'}</span>
+                            <span class="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${c.activo ? 'bg-purple-600 text-white' : 'bg-slate-400 text-white'}">${c.activo ? 'Combo Kit Activo' : 'Inactivo'}</span>
                             <h4 class="font-bold text-slate-800 text-sm mt-1">${c.nombre}</h4>
                             <p class="text-xs text-slate-500">Costo: $${c.costoTotal.toFixed(2)} | Venta: <span class="font-bold text-purple-700">$${c.precioVenta.toFixed(2)}</span></p>
                             <p class="text-xs font-bold text-emerald-600">Ganancia: +$${c.ganancia.toFixed(2)}</p>
