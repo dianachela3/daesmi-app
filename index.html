@@ -4,31 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DAESMI · Catálogo y Gestión</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased font-sans pb-24">
 
-    <!-- CONTENEDOR PRINCIPAL -->
     <main class="max-w-md mx-auto min-h-screen flex flex-col p-4 bg-slate-50">
         
-        <!-- HEADER GENERAL -->
         <header class="flex justify-between items-center mb-6">
             <div>
                 <h1 class="text-xl font-black text-purple-900 tracking-tight">DAESMI</h1>
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cosmetics & Accessories</p>
             </div>
-            <!-- Botón dinámico de acceso / perfil -->
             <button id="btn-estado-sesion" class="bg-purple-100 p-2 rounded-xl text-purple-800 shadow-xs cursor-pointer flex items-center gap-1.5 text-xs font-bold">
                 <i data-lucide="user" class="w-4 h-4"></i> <span id="txt-estado-sesion">Login</span>
             </button>
         </header>
 
-        <!-- ========================================== -->
-        <!-- VISTA EXCLUSIVA: LOGIN -->
-        <!-- ========================================== -->
         <section id="view-login" class="hidden my-auto py-12 space-y-4">
             <div class="text-center">
                 <h3 class="text-base font-black text-purple-950">Panel Administrativo</h3>
@@ -48,27 +40,24 @@
             </form>
         </section>
 
-        <!-- ========================================== -->
-        <!-- VISTA PRIVADA: BALANCE (SOLO ADMIN) -->
-        <!-- ========================================== -->
         <section id="view-balance" class="hidden space-y-4">
             <div class="bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 text-white p-6 rounded-2xl shadow-xl border border-purple-950 relative overflow-hidden">
                 <div class="absolute -right-6 -bottom-6 text-purple-700/20 pointer-events-none">
                     <i data-lucide="wallet" class="w-32 h-32"></i>
                 </div>
                 <p class="text-xs font-semibold uppercase tracking-wider text-purple-200">Ganancia Neta Disponible</p>
-                <h2 id="bal-ganancia-neta" class="text-4xl font-black tracking-tight my-1">$0.00</h2>
+                <h2 id="dash-ganancias" class="text-4xl font-black tracking-tight my-1">$0.00</h2>
                 <p class="text-[10px] text-purple-300">Calculado sobre productos cobrados</p>
             </div>
 
             <div class="grid grid-cols-3 gap-2">
                 <div class="bg-white p-3 rounded-xl border border-slate-100 shadow-xs">
                     <p class="text-[10px] font-bold text-slate-400 uppercase">Ingresos</p>
-                    <p id="bal-total-ventas" class="text-sm font-black text-emerald-600 mt-0.5">+$0.00</p>
+                    <p id="dash-ingresos" class="text-sm font-black text-emerald-600 mt-0.5">+$0.00</p>
                 </div>
                 <div class="bg-white p-3 rounded-xl border border-slate-100 shadow-xs">
                     <p class="text-[10px] font-bold text-slate-400 uppercase">Inversión</p>
-                    <p id="bal-total-costos" class="text-sm font-black text-rose-500 mt-0.5">-$0.00</p>
+                    <p id="dash-costos" class="text-sm font-black text-rose-500 mt-0.5">-$0.00</p>
                 </div>
                 <div class="bg-amber-50 p-3 rounded-xl border border-amber-100 shadow-xs">
                     <p class="text-[10px] font-bold text-amber-700 uppercase">Por Cobrar</p>
@@ -76,7 +65,21 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-3 pt-2">
+            <div class="flex gap-2 pt-1">
+                <button id="filtro-hoy" class="flex-1 text-center py-2 bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer">Hoy</button>
+                <button id="filtro-semana" class="flex-1 text-center py-2 bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer">7 Días</button>
+                <button id="filtro-mes" class="flex-1 text-center py-2 bg-purple-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer">Este Mes</button>
+            </div>
+
+            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs space-y-2">
+                <h3 class="text-[10px] font-bold uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                    <i data-lucide="flame" class="w-3.5 h-3.5 text-amber-500"></i> Productos Más Vendidos
+                </h3>
+                <div id="lista-top-productos" class="space-y-1.5 pt-1">
+                    </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 pt-1">
                 <button id="btn-dash-venta" class="bg-purple-800 hover:bg-purple-900 text-white p-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer">
                     <i data-lucide="shopping-bag" class="w-4 h-4"></i> Registrar Venta
                 </button>
@@ -87,13 +90,23 @@
 
             <div class="pt-2">
                 <h3 class="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Historial de Movimientos</h3>
-                <div id="lista-transacciones" class="space-y-2"></div>
+                <div class="bg-white rounded-2xl border border-slate-100 p-2 shadow-xs overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-100 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                                <th class="py-2 px-1">Artículo</th>
+                                <th class="py-2">Fecha</th>
+                                <th class="py-2 text-right">Total</th>
+                                <th class="py-2 text-right px-1">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista-transacciones-body">
+                            </tbody>
+                    </table>
+                </div>
             </div>
         </section>
 
-        <!-- ========================================== -->
-        <!-- VISTA MIXTA: INVENTARIO / CATÁLOGO PÚBLICO -->
-        <!-- ========================================== -->
         <section id="view-inventario" class="space-y-4">
             <div class="flex justify-between items-center">
                 <div>
@@ -102,7 +115,9 @@
                 </div>
             </div>
 
-            <!-- Botonera de Creación (Solo visible para Admin) -->
+            <div id="contenedor-alertas-stock" class="space-y-2">
+                </div>
+
             <div id="wrapper-acciones-inventario" class="hidden grid grid-cols-2 gap-2">
                 <button id="btn-nuevo-producto" class="bg-slate-900 text-white p-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer">
                     <i data-lucide="plus" class="w-4 h-4"></i> Producto Simple
@@ -112,13 +127,27 @@
                 </button>
             </div>
 
-            <!-- Lista Unificada de Inventario / Catálogo -->
+            <div id="wrapper-tabla-inventario-admin" class="hidden bg-white rounded-2xl border border-slate-100 p-3 shadow-xs overflow-x-auto">
+                <h4 class="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-2">Fichas Técnicas de Stock</h4>
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-100 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                            <th class="py-2 px-2">Nombre</th>
+                            <th class="py-2 px-2 hidden md:table-cell">Detalle</th>
+                            <th class="py-2 px-2">Costo</th>
+                            <th class="py-2 px-2">Venta</th>
+                            <th class="py-2 px-2">Stock</th>
+                            <th class="py-2 px-2 text-right">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-inventario-body">
+                        </tbody>
+                </table>
+            </div>
+
             <div id="lista-inventario" class="space-y-3 pt-2"></div>
         </section>
 
-        <!-- ========================================== -->
-        <!-- VISTA PRIVADA: AJUSTES (SOLO ADMIN) -->
-        <!-- ========================================== -->
         <section id="view-ajustes" class="hidden space-y-4">
             <div>
                 <h3 class="text-base font-black text-slate-800">Ajustes Generales</h3>
@@ -134,7 +163,6 @@
 
     </main>
 
-    <!-- NAVEGACIÓN INFERIOR DINÁMICA -->
     <nav class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 p-3 shadow-lg z-40">
         <div class="max-w-md mx-auto flex justify-around items-center">
             <button id="nav-balance" class="hidden flex flex-col items-center gap-1 text-slate-400 font-medium transition-colors cursor-pointer">
@@ -152,7 +180,6 @@
         </div>
     </nav>
 
-    <!-- MODAL: PRODUCTO SIMPLE -->
     <div id="modal-producto" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden justify-center items-end z-50 p-4">
         <div class="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
             <div class="flex justify-between items-center">
@@ -168,7 +195,6 @@
                     <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Descripción Comercial</label>
                     <textarea id="prod-descripcion" rows="2" class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none focus:border-purple-600 resize-none"></textarea>
                 </div>
-                <!-- NUEVO: Campo de Foto URL Directa o URL Externa -->
                 <div>
                     <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">URL de la Imagen (Opcional)</label>
                     <input type="url" id="prod-foto" class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none" placeholder="https://ejemplo.com/foto.jpg">
@@ -192,7 +218,6 @@
         </div>
     </div>
 
-    <!-- MODAL: COMBOS / KITS -->
     <div id="modal-combo" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden justify-center items-end z-50 p-4">
         <div class="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
             <div class="flex justify-between items-center">
@@ -218,7 +243,7 @@
                         <select id="combo-select-producto" class="w-full bg-white border p-2 rounded-xl text-xs"></select>
                         <button type="button" id="btn-agregar-item-combo" class="bg-slate-900 text-white px-3 rounded-xl text-xs font-bold cursor-pointer">+</button>
                     </div>
-                    <div id="items-combo-agregados" class="space-y-1 pt-1"></div>
+                    <ul id="combo-lista-productos-temporal" class="space-y-1 pt-1 max-h-32 overflow-y-auto"></ul>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                     <div>
@@ -235,7 +260,6 @@
         </div>
     </div>
 
-    <!-- MODAL: REGISTRAR VENTA -->
     <div id="modal-venta" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden justify-center items-end z-50 p-4">
         <div class="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl space-y-4">
             <div class="flex justify-between items-center">
@@ -263,12 +287,11 @@
         </div>
     </div>
 
-    <!-- POP-UP MARKETING -->
     <div id="modal-marketing" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden justify-center items-center z-50 p-4">
         <div class="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center">
                 <h4 class="font-black text-slate-800 text-sm">Herramienta de Catálogo</h4>
-                <button onclick="document.getElementById('modal-marketing').classList.replace('flex', 'hidden')" class="text-slate-400 font-bold text-xs p-1 cursor-pointer">✕</button>
+                <button onclick="document.getElementById('modal-marketing').classList.remove('flex'); document.getElementById('modal-marketing').classList.add('hidden');" class="text-slate-400 font-bold text-xs p-1 cursor-pointer">✕</button>
             </div>
             <div id="mkt-tarjeta-visual" class="w-full rounded-2xl bg-gradient-to-tr from-fuchsia-100 via-purple-50 to-pink-100 p-6 border border-purple-200/60 text-center flex flex-col justify-center items-center space-y-3 relative overflow-hidden min-h-[220px]">
                 <div class="absolute top-2 left-3 text-[8px] font-bold tracking-widest text-purple-400 uppercase">DAESMI</div>
@@ -285,7 +308,6 @@
         </div>
     </div>
 
-    <!-- INCLUSIÓN MODULAR DE FIREBASE (MÓDULOS CDN) -->
     <script type="module" src="app.js"></script>
 </body>
 </html>
