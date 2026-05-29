@@ -255,12 +255,19 @@ function inicializarNavegacionYModales() {
         e.preventDefault();
         const itemId = document.getElementById("venta-select-item").value;
         if (!itemId) return;
-
+    
         const estado = document.getElementById("venta-estado-pago").value;
         const precioCobrado = parseFloat(document.getElementById("venta-precio-final").value) || 0;
         let costoTotalVenta = 0;
         let nombreArticulo = "";
-
+    
+        // 🌟 1. LEER SI ASUMISTE ENVÍO Y CUÁNTO FUE
+        const asumioEnvioRadio = document.querySelector('input[name="asumio-envio"]:checked')?.value || "no";
+        let envioAsumido = 0;
+        if (asumioEnvioRadio === "si") {
+            envioAsumido = parseFloat(document.getElementById("venta-envio-asumido").value) || 0;
+        }
+    
         if (itemId.startsWith("prod_")) {
             const cleanId = itemId.replace("prod_", "");
             const prod = productos.find(p => p.id === cleanId);
@@ -273,7 +280,7 @@ function inicializarNavegacionYModales() {
             const cleanId = itemId.replace("combo_", "");
             const combo = combos.find(c => c.id === cleanId);
             if (!combo) return;
-
+    
             for (let item of combo.productos) {
                 const orig = productos.find(p => p.id === item.id);
                 if (!orig || orig.stock < item.cantidad) return alert(`Stock insuficiente del componente: ${item.nombre}`);
@@ -285,17 +292,29 @@ function inicializarNavegacionYModales() {
             costoTotalVenta = combo.costoTotal;
             nombreArticulo = `[Kit] ${combo.nombre}`;
         }
-
+    
+        // 🌟 2. CALCULAR GANANCIA REAL (Precio cobrado - Costos - Envío asumido)
+        const gananciaCalculada = (precioCobrado - costoTotalVenta) - envioAsumido;
+    
         await addDoc(collection(db, "transacciones"), {
             articulo: nombreArticulo,
             totalRecibido: precioCobrado,
             costoReal: costoTotalVenta,
-            gananciaLimpia: precioCobrado - costoTotalVenta,
+            envioAsumido: envioAsumido, // 🌟 Guardamos el registro por si quieres auditar luego
+            gananciaLimpia: gananciaCalculada, // 🌟 Aquí viaja la ganancia ya castigada con el envío
             estado,
             fecha: new Date().toLocaleString("es-CO", { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit', hour12: true }),
             timestamp: Date.now()
         });
-
+    
+        // 🌟 3. LIMPIAR EL FORMULARIO DE ENVÍOS PARA LA PRÓXIMA VENTA
+        if (document.getElementById("venta-envio-asumido")) {
+            document.getElementById("venta-envio-asumido").value = "0";
+            document.getElementById("contenedor-envio-asumido").classList.add("hidden");
+            const radioNo = document.querySelector('input[name="asumio-envio"][value="no"]');
+            if (radioNo) radioNo.checked = true;
+        }
+    
         cerrarModal("modal-venta");
     });
 
