@@ -455,15 +455,22 @@ function procesarYRenderizarBalance() {
 
         if(contenedorHistorial) {
             const div = document.createElement("div");
-            div.className = "bg-white p-3 rounded-xl border border-slate-100 shadow-xs flex justify-between items-center text-xs";
+            div.className = "bg-white p-3 rounded-xl border border-slate-100 shadow-xs flex justify-between items-center text-xs gap-2";
             div.innerHTML = `
-                <div>
-                    <p class="font-bold text-slate-800">${t.articulo}</p>
+                <div class="flex-1 min-w-0">
+                    <p class="font-bold text-slate-800 truncate">${t.articulo}</p>
                     <p class="text-[10px] text-slate-400">${t.fecha}</p>
                 </div>
-                <div class="text-right">
-                    <p class="font-black ${t.estado === 'pendiente' ? 'text-amber-600' : 'text-emerald-600'}">$${t.totalRecibido.toLocaleString()}</p>
-                    <span class="text-[9px] uppercase font-bold tracking-wider ${t.estado === 'pendiente' ? 'text-amber-700 bg-amber-50' : 'text-emerald-700 bg-emerald-50'} px-1.5 py-0.5 rounded-md">${t.estado}</span>
+                <div class="text-right flex items-center gap-2">
+                    <div>
+                        <p class="font-black ${t.estado === 'pendiente' ? 'text-amber-600' : 'text-emerald-600'}">$${t.totalRecibido.toLocaleString()}</p>
+                        <span class="text-[9px] uppercase font-bold tracking-wider ${t.estado === 'pendiente' ? 'text-amber-700 bg-amber-50' : 'text-emerald-700 bg-emerald-50'} px-1.5 py-0.5 rounded-md">${t.estado}</span>
+                    </div>
+                    ${isAdmin ? `
+                        <button onclick="window.eliminarVentaInteligente('${t.id}', '${t.articulo}')" class="p-1 text-rose-400 hover:text-rose-600 ml-1" title="Eliminar Venta">
+                            ✕
+                        </button>
+                    ` : ''}
                 </div>
             `;
             contenedorHistorial.appendChild(div);
@@ -713,5 +720,62 @@ window.eliminarElementoEfectivo = async function(id, coleccion, nombre) {
             console.error("Error al eliminar:", error);
             alert("Hubo un error de permisos en Firebase al intentar eliminar el elemento.");
         }
+    }
+};
+
+// 🌟 FUNCIÓN NUEVA: Eliminar una venta preguntando si devuelve stock
+window.eliminarVentaInteligente = async function(idTransaccion, nombreArticulo) {
+    // 1. Primera confirmación básica
+    const confirmarBorrado = confirm(`¿Estás segura de eliminar la venta de "${nombreArticulo}"?\nEsta acción la quitará de los reportes y balances.`);
+    if (!confirmarBorrado) return;
+
+    // 2. Buscar si la transacción tiene guardado un ID de producto para saber qué reponer
+    // Necesitamos inspeccionar la transacción directamente desde nuestro estado local
+    const trans = transacciones.find(t => t.id === idTransaccion);
+    if (!trans) return alert("No se encontró la información de la transacción.");
+
+    // 3. Preguntar si se devuelve la mercancía al inventario físico
+    const devolverStock = confirm(`🔄 ¿Deseas regresar este producto al INVENTARIO?\n\n[Aceptar] = Sí, la mercancía vuelve a estar disponible para la venta.\n[Cancelar] = No, la mercancía se perdió/dañó o fue un ajuste manual.`);
+
+    try {
+        // Si el usuario marcó que SÍ quiere devolver el stock
+        if (devolverStock) {
+            // Evaluamos si lo que se vendió fue un Kit o un Producto Individual
+            if (nombreArticulo.startsWith("[Kit]")) {
+                // Es un combo. Debemos buscar el combo en nuestra lista para ver sus componentes
+                const comboNombreLimpio = nombreArticulo.replace("[Kit] ", "");
+                const comboOriginal = combos.find(c => c.nombre === comboNombreLimpio);
+                
+                if (comboOriginal && comboOriginal.productos) {
+                    // Recorremos los productos que armaban ese kit y les devolvemos su cantidad
+                    for (let item of comboOriginal.productos) {
+                        const prodInventario = productos.find(p => p.id === item.id);
+                        if (prodInventario) {
+                            await updateDoc(doc(db, "productos", item.id), {
+                                stock: prodInventario.stock + item.cantidad
+                            });
+                        }
+                    }
+                }
+            } else {
+                // Es un producto individual simple. Buscamos por nombre o por aproximación en nuestro estado
+                const prodInventario = productos.find(p => p.nombre === nombreArticulo);
+                if (prodInventario) {
+                    await updateDoc(doc(db, "productos", prodInventario.id), {
+                        stock: prodInventario.stock + 1
+                    });
+                } else {
+                    alert("⚠️ La venta se borrará, pero el producto original no se encontró en el inventario actual para sumarle el stock.");
+                }
+            }
+        }
+
+        // 4. Finalmente, borrar la transacción de Firebase
+        await deleteDoc(doc(db, "transacciones", idTransaccion));
+        alert("Transacción eliminada correctamente. Tus balances se han actualizado.");
+
+    } catch (error) {
+        console.error("Error al eliminar la transacción:", error);
+        alert("Hubo un error de permisos o conexión al intentar borrar la venta.");
     }
 };
