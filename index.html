@@ -77,6 +77,36 @@
                 </div>
             </div>
 
+            <div class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 text-white p-4 rounded-2xl shadow-md my-2">
+                <div class="flex justify-between items-center border-b border-slate-700 pb-2 mb-2.5">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-sm">🪙</span>
+                        <h3 class="text-[10px] font-black uppercase tracking-wider text-slate-300">Caja Fuerte DAESMI</h3>
+                    </div>
+                    <button type="button" onclick="window.abrirModalRetiro()" class="bg-purple-600 hover:bg-purple-700 text-white text-[9px] font-bold px-2 py-0.5 rounded-lg transition-all shadow-xs cursor-pointer">
+                        Retirar Utilidad
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-3 gap-1.5 text-center">
+                    <div class="bg-slate-800/60 p-2 rounded-xl border border-slate-700/40">
+                        <p class="text-[8px] uppercase font-bold text-slate-400">Capital Base</p>
+                        <span id="caja-capital-base" class="text-xs font-black text-purple-400">$0</span>
+                        <button type="button" onclick="window.ajustarCapitalBaseManual()" class="block w-full text-[7px] text-slate-500 underline hover:text-slate-300 mt-0.5 cursor-pointer">Definir</button>
+                    </div>
+
+                    <div class="bg-slate-800/60 p-2 rounded-xl border border-slate-700/40">
+                        <p class="text-[8px] uppercase font-bold text-slate-400">Utilidad Libre</p>
+                        <span id="caja-ganancia-libre" class="text-xs font-black text-emerald-400">$0</span>
+                    </div>
+
+                    <div class="bg-purple-950/40 p-2 rounded-xl border border-purple-500/20">
+                        <p class="text-[8px] uppercase font-bold text-purple-300">Efectivo Total</p>
+                        <span id="caja-efectivo-total" class="text-xs font-black text-amber-400">$0</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- NUEVO PUNTO 1: BOTONES DE FILTRO DE FECHAS -->
             <div class="flex gap-2 pt-1">
                 <button id="filtro-hoy" class="flex-1 text-center py-2 bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer">Hoy</button>
@@ -328,6 +358,26 @@
                 <button id="btn-copiar-copy" class="w-full bg-slate-900 text-white p-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 cursor-pointer">
                     <i data-lucide="clipboard" class="w-3.5 h-3.5"></i> Copiar Texto Comercial
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-retiro-ganancias" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center">
+                <h4 class="font-black text-slate-800 text-sm">💸 Registrar Retiro de Utilidades</h4>
+                <button onclick="window.cerrarModalRetiro()" class="text-slate-400 font-bold text-xs p-1 cursor-pointer">✕</button>
+            </div>
+            <p class="text-[11px] text-slate-400">Usa esta opción si vas a sacar dinero de las ganancias del negocio para uso tuyo personal.</p>
+            
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Monto a retirar ($)</label>
+                <input type="number" id="retiro-monto" placeholder="Ej: 20000" class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none focus:border-purple-600 font-bold">
+            </div>
+
+            <div class="flex gap-2 justify-end pt-2">
+                <button type="button" onclick="window.cerrarModalRetiro()" class="px-3 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold cursor-pointer">Cancelar</button>
+                <button type="button" onclick="window.ejecutarRetiroGanancias()" class="px-3 py-2 bg-purple-800 text-white rounded-xl text-xs font-bold hover:bg-purple-900 cursor-pointer">Confirmar Retiro</button>
             </div>
         </div>
     </div>
