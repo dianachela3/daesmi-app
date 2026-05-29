@@ -450,7 +450,7 @@ function procesarYRenderizarBalance() {
         } else {
             totalVentas += t.totalRecibido;
             totalCostos += t.costoReal;
-            totalGanancias += t.gananciaLimpia;
+            totalGanancias += (t.gananciaLimpia !== undefined) ? t.gananciaLimpia : (t.totalRecibido - t.costoReal);
         }
 
         if(contenedorHistorial) {
