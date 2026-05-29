@@ -179,6 +179,28 @@
                 <h3 class="text-base font-black text-slate-800">Ajustes Generales</h3>
                 <p class="text-[11px] text-slate-400">Control de la plataforma en la nube</p>
             </div>
+
+            <!-- Panel de Auditoría de Caja Fuerte (Nuevo Bloque) -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs space-y-3">
+                <h4 class="text-xs font-black uppercase text-purple-950 tracking-wider flex items-center gap-1">
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5 text-purple-700"></i> Auditoría Financiera
+                </h4>
+                <p class="text-[11px] text-slate-400">Define el dinero inicial de tu colchón de caja. Al registrar inversiones grandes o inyecciones de dinero, actualiza este campo.</p>
+                
+                <div class="space-y-2 pt-1">
+                    <div>
+                        <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Modificar Capital Base ($)</label>
+                        <div class="flex gap-2">
+                            <input type="number" id="input-ajuste-capital" placeholder="Ej: 200000" class="w-full bg-slate-50 border p-2 rounded-xl text-xs font-bold focus:outline-hidden">
+                            <button type="button" onclick="window.actualizarCapitalBaseDesdeAjustes()" class="bg-purple-800 hover:bg-purple-900 text-white px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer">
+                                Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botón de Cierre de Sesión -->
             <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-xs space-y-3 text-center">
                 <p class="text-xs text-slate-500">Sesión activa en servidores seguros de Firebase.</p>
                 <button id="btn-cerrar-sesion" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 p-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer">
