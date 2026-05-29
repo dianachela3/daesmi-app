@@ -30,6 +30,8 @@ let productosEnComboTemporal = [];
 let filtroFechaActual = "mes"; 
 let isAdmin = false;
 let alertasOcultasTemporalmente = [];
+let capitalBaseFijo = 0;
+let retirosAcumulados = 0;
 
 // Al arrancar la página
 document.addEventListener("DOMContentLoaded", () => {
