@@ -8,12 +8,12 @@ import {
 
 // Configuración de Firebase (Mantén tus credenciales reales aquí)
 const firebaseConfig = {
-    apiKey: "AIzaSyA1...",
-    authDomain: "daesmi-app.firebaseapp.com",
-    projectId: "daesmi-app",
-    storageBucket: "daesmi-app.appspot.com",
-    messagingSenderId: "123456789012",
-    appId: "1:123456789012:web:a1b2c3d4e5f6"
+  apiKey: "AIzaSyAzW2B3R_TxTojtp8Vw0iS3C2APO2Pmi5A",
+  authDomain: "daesmi-8a93c.firebaseapp.com",
+  projectId: "daesmi-8a93c",
+  storageBucket: "daesmi-8a93c.firebasestorage.app",
+  messagingSenderId: "298101414150",
+  appId: "1:298101414150:web:294bcf5dd07f18a9cc6687"
 };
 
 // Inicializar Firebase y Servicios
