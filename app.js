@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { 
-    getFirestore, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy, deleteDoc
+    getFirestore, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy, deleteDoc, setDoc
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { 
     getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged 
@@ -484,6 +484,14 @@ function procesarYRenderizarBalance() {
     if(document.getElementById("bal-total-costos")) document.getElementById("bal-total-costos").innerText = `-$${totalCostos.toLocaleString()}`;
     if(document.getElementById("bal-total-deudas")) document.getElementById("bal-total-deudas").innerText = `$${totalDeudas.toLocaleString()}`;
     
+    // 🌟 NUEVAS LÍNEAS PARA ACTUALIZAR LOS DATOS DE LA CAJA FUERTE DAESMI
+    const utilidadLibre = totalGanancias - retirosAcumulados;
+    const efectivoTotalCaja = capitalBaseFijo + utilidadLibre;
+
+    if(document.getElementById("caja-capital-base")) document.getElementById("caja-capital-base").innerText = `$${capitalBaseFijo.toLocaleString()}`;
+    if(document.getElementById("caja-ganancia-libre")) document.getElementById("caja-ganancia-libre").innerText = `$${utilidadLibre.toLocaleString()}`;
+    if(document.getElementById("caja-efectivo-total")) document.getElementById("caja-efectivo-total").innerText = `$${efectivoTotalCaja.toLocaleString()}`;
+    
     calcularTopProductos(transaccionesFiltradas);
 }
 
@@ -781,3 +789,20 @@ window.eliminarVentaInteligente = async function(idTransaccion, nombreArticulo) 
         alert("Hubo un error de permisos o conexión al intentar borrar la venta.");
     }
 };
+
+function iniciarEscuchaCajaFuerte() {
+    onSnapshot(doc(db, "configuracion", "caja_daesmi"), (docSnap) => {
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            capitalBaseFijo = data.capitalBase || 0;
+            retirosAcumulados = data.retiros || 0;
+        } else {
+            // Si es la primera vez y no existe en Firebase, lo creamos en ceros
+            setDoc(doc(db, "configuracion", "caja_daesmi"), { capitalBase: 0, retiros: 0 });
+        }
+        // Cada vez que cambie la configuración, refrescamos la pantalla
+        if (typeof procesarYRenderizarBalance === "function" && transacciones.length > 0) {
+            procesarYRenderizarBalance();
+        }
+    });
+}
