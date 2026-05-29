@@ -6,7 +6,7 @@ import {
     getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-// Configuración de Firebase (Mantén tus credenciales reales aquí)
+// Configuración de Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyAzW2B3R_TxTojtp8Vw0iS3C2APO2Pmi5A",
   authDomain: "daesmi-8a93c.firebaseapp.com",
@@ -25,13 +25,16 @@ const auth = getAuth(app);
 let productos = [];
 let combos = [];
 let transacciones = [];
+let carrito = JSON.parse(localStorage.getItem("daesmi_carrito")) || [];
 let idElementoEdicion = null;
 let productosEnComboTemporal = [];
 let filtroFechaActual = "mes"; 
+let categoriaSeleccionada = "todos";
 let isAdmin = false;
 let alertasOcultasTemporalmente = [];
 let capitalBaseFijo = 0;
 let retirosAcumulados = 0;
+const WHATSAPP_NUMERO = "573022152560"; // Configuración del canal de atención DAESMI
 
 // Al arrancar la página
 document.addEventListener("DOMContentLoaded", () => {
@@ -39,6 +42,8 @@ document.addEventListener("DOMContentLoaded", () => {
     inicializarAutenticacion();
     escucharDatosFirebase();
     configurarSelectoresFiltro();
+    inicializarManejadoresCarrito();
+    actualizarBadgeCarritoVisual();
 });
 
 // ========================================================
@@ -51,7 +56,6 @@ function inicializarAutenticacion() {
     const btnCancelLogin = document.getElementById("btn-cancelar-login");
     const btnCerrarSesion = document.getElementById("btn-cerrar-sesion");
 
-    // Escuchar cambios de estado en la sesión
     onAuthStateChanged(auth, (user) => {
         if (user) {
             isAdmin = true;
@@ -60,7 +64,6 @@ function inicializarAutenticacion() {
             document.getElementById("nav-ajustes").classList.remove("hidden");
             document.getElementById("wrapper-acciones-inventario").classList.remove("hidden");
             
-            // Si el admin estaba en el login, redirigir a caja
             if (!document.getElementById("view-login").classList.contains("hidden")) {
                 window.cambiarVistaEfectiva("view-balance", document.getElementById("nav-balance"));
             }
@@ -72,10 +75,10 @@ function inicializarAutenticacion() {
             document.getElementById("wrapper-acciones-inventario").classList.add("hidden");
             window.cambiarVistaEfectiva("view-inventario", document.getElementById("nav-inventario"));
         }
-        renderizarCatalogoTarjetas(); // Re-renderizar para ocultar/mostrar botones de edición
+        renderizarCatalogoTarjetas();
+        verificarAlertasStock();
     });
 
-    // Manejo del click en Login / Panel Superior
     if (btnEstadoSesion) {
         btnEstadoSesion.addEventListener("click", () => {
             if (isAdmin) {
@@ -92,7 +95,6 @@ function inicializarAutenticacion() {
         });
     }
 
-    // Procesar Formulario de Login
     if (formLogin) {
         formLogin.addEventListener("submit", async (e) => {
             e.preventDefault();
@@ -109,7 +111,6 @@ function inicializarAutenticacion() {
         });
     }
 
-    // Procesar Cierre de Sesión
     if (btnCerrarSesion) {
         btnCerrarSesion.addEventListener("click", async () => {
             await signOut(auth);
@@ -127,6 +128,7 @@ function escucharDatosFirebase() {
         actualizarSelectoresDeProductos();
         renderizarCatalogoTarjetas();
         verificarAlertasStock();
+        renderizarCategoriasNavegacion();
     });
 
     onSnapshot(query(collection(db, "combos"), orderBy("nombre")), (snapshot) => {
@@ -140,7 +142,6 @@ function escucharDatosFirebase() {
         procesarYRenderizarBalance();
     });
 
-    // 🌟 CORRECCIÓN: Invocamos aquí de forma nativa la escucha de la caja fuerte para que no quede aislada
     onSnapshot(doc(db, "configuracion", "caja_daesmi"), (docSnap) => {
         if (docSnap.exists()) {
             const data = docSnap.data();
@@ -199,7 +200,7 @@ function inicializarNavegacionYModales() {
     document.getElementById("btn-cerrar-modal-combo").addEventListener("click", () => cerrarModal("modal-combo"));
     document.getElementById("btn-cerrar-modal-venta").addEventListener("click", () => cerrarModal("modal-venta"));
 
-    // Guardar Producto
+    // Guardar Producto (Incluyendo categoría de forma dinámica)
     document.getElementById("form-producto").addEventListener("submit", async (e) => {
         e.preventDefault();
         const nombre = document.getElementById("prod-nombre").value.trim();
@@ -208,8 +209,9 @@ function inicializarNavegacionYModales() {
         const costo = parseFloat(document.getElementById("prod-costo").value) || 0;
         const precio = parseFloat(document.getElementById("prod-precio").value) || 0;
         const stock = parseInt(document.getElementById("prod-stock").value) || 0;
+        const categoria = document.getElementById("prod-categoria").value.trim() || "General";
 
-        const payload = { nombre, descripcion, fotoUrl, costo, precio, stock, activo: true };
+        const payload = { nombre, descripcion, fotoUrl, costo, precio, stock, categoria, activo: true };
 
         if (idElementoEdicion) {
             await updateDoc(doc(db, "productos", idElementoEdicion), payload);
@@ -365,6 +367,7 @@ window.abrirModalProducto = function(id = null) {
             document.getElementById("prod-costo").value = p.costo;
             document.getElementById("prod-precio").value = p.precio;
             document.getElementById("prod-stock").value = p.stock;
+            document.getElementById("prod-categoria").value = p.categoria || "General";
         }
     }
     const modal = document.getElementById("modal-producto");
@@ -466,7 +469,6 @@ function procesarYRenderizarBalance() {
 
         if(contenedorHistorial) {
             const div = document.createElement("div");
-            // 🌟 MODIFICACIÓN: Se añade cursor-pointer, hover y evento click para detonar el recibo detallado de la venta
             div.className = "bg-white p-3 rounded-xl border border-slate-100 shadow-xs flex justify-between items-center text-xs gap-2 cursor-pointer hover:bg-purple-50/40 transition-all";
             div.onclick = () => window.abrirDetalleReciboVenta(t.id);
             div.innerHTML = `
@@ -495,7 +497,6 @@ function procesarYRenderizarBalance() {
     if(document.getElementById("bal-total-costos")) document.getElementById("bal-total-costos").innerText = `-$${totalCostos.toLocaleString()}`;
     if(document.getElementById("bal-total-deudas")) document.getElementById("bal-total-deudas").innerText = `$${totalDeudas.toLocaleString()}`;
     
-    // Cálculos de la caja fuerte real en base a utilidades históricas acumuladas
     const utilidadLibre = totalGanancias - retirosAcumulados;
     const efectivoTotalCaja = capitalBaseFijo + utilidadLibre;
 
@@ -503,55 +504,199 @@ function procesarYRenderizarBalance() {
     if(document.getElementById("caja-ganancia-libre")) document.getElementById("caja-ganancia-libre").innerText = `$${utilidadLibre.toLocaleString()}`;
     if(document.getElementById("caja-efectivo-total")) document.getElementById("caja-efectivo-total").innerText = `$${efectivoTotalCaja.toLocaleString()}`;
     
-    calcularTopProductos(transaccionesFiltradas);
+    // Calcular analítica de rotación interna (Top 3 de más vendidos)
+    calcularTopProductosPublico();
 }
 
-function calcularTopProductos(listaTransacciones) {
+// ========================================================
+// 🌟 OBSERVACIÓN 3: TOP 3 MÁS VENDIDOS PARA CLIENTES
+// ========================================================
+function calcularTopProductosPublico() {
     const conteo = {};
-    listaTransacciones.forEach(t => { conteo[t.articulo] = (conteo[t.articulo] || 0) + 1; });
+    transacciones.forEach(t => { 
+        if (t.estado !== "pendiente") {
+            conteo[t.articulo] = (conteo[t.articulo] || 0) + 1; 
+        }
+    });
 
     const ordenados = Object.keys(conteo).map(name => ({
-        nombre: name, ventas: conteo[name]
+        nombre: name.replace("[Kit] ", ""),
+        ventas: conteo[name],
+        esKit: name.startsWith("[Kit]")
     })).sort((a, b) => b.ventas - a.ventas).slice(0, 3);
 
-    const contenedorTop = document.getElementById("lista-top-productos");
-    if(!contenedorTop) return;
-    contenedorTop.innerHTML = "";
+    const contenedorTopPublico = document.getElementById("lista-top-productos-cliente");
+    if(!contenedorTopPublico) return;
+    contenedorTopPublico.innerHTML = "";
     
     if(ordenados.length === 0) {
-        contenedorTop.innerHTML = `<p class="text-xs text-slate-400 italic">Sin movimientos en este rango.</p>`;
+        document.getElementById("seccion-destacados-cliente")?.classList.add("hidden");
         return;
     }
+    
+    document.getElementById("seccion-destacados-cliente")?.classList.remove("hidden");
     ordenados.forEach((item, index) => {
-        contenedorTop.innerHTML += `
-            <div class="flex justify-between items-center text-xs py-1 border-b border-slate-50">
-                <span class="text-slate-600 font-medium">${index + 1}. ${item.nombre}</span>
-                <span class="bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full text-[10px] font-black">${item.ventas} uds</span>
+        const medalla = index === 0 ? "👑" : index === 1 ? "✨" : "💖";
+        contenedorTopPublico.innerHTML += `
+            <div class="bg-white p-3 rounded-xl border border-purple-100 flex items-center gap-3 shadow-2xs">
+                <span class="text-lg">${medalla}</span>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-800 truncate">${item.nombre}</p>
+                    <p class="text-[9px] font-semibold text-purple-600 uppercase tracking-wider">${item.esKit ? 'Kit Destacado' : 'Favorito del Mes'}</p>
+                </div>
             </div>
         `;
     });
 }
 
 // ========================================================
-// 6. ADAPTACIÓN DE RENDERIZADO DEL CATÁLOGO DE TARJETAS
+// 🌟 OBSERVACIÓN 4: EXPORTACIÓN MENSUAL E IMPRESIÓN DEL BALANCE
 // ========================================================
+window.exportarHistorialMensual = function() {
+    const transaccionesFiltradas = transacciones.filter(t => cumpleFiltroFecha(t.timestamp));
+    if (transaccionesFiltradas.length === 0) return alert("No hay transacciones registradas en este periodo para exportar.");
+
+    let printWindow = window.open('', '_blank');
+    let tablaHTML = `
+        <html>
+        <head>
+            <title>DAESMI - Reporte Financiero (${filtroFechaActual.toUpperCase()})</title>
+            <style>
+                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; color: #333; }
+                h1 { color: #5b21b6; margin-bottom: 5px; }
+                .meta { font-size: 12px; color: #666; margin-bottom: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; font-size: 12px; }
+                th { bg-color: #f8fafc; font-weight: bold; }
+                .monto { text-align: right; font-weight: bold; }
+                .ganancia { color: #059669; }
+                .pendiente { color: #d97706; }
+                .totales { margin-top: 20px; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; }
+                .totales p { margin: 5px 0; font-size: 14px; }
+            </style>
+        </head>
+        <body>
+            <h1>DAESMI COSMETICS</h1>
+            <div class="meta">Reporte de Ventas - Periodo Filtro: <strong>${filtroFechaActual.toUpperCase()}</strong> | Generado el: ${new Date().toLocaleDateString()}</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Artículo / Concepto</th>
+                        <th>Estado</th>
+                        <th class="monto">Cobrado ($)</th>
+                        <th class="monto">Costo Mercancía ($)</th>
+                        <th class="monto">Envio Subs ($)</th>
+                        <th class="monto">Utilidad Neta ($)</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    let tVentas = 0, tCostos = 0, tEnvios = 0, tGanancias = 0;
+
+    transaccionesFiltradas.forEach(t => {
+        const cost = t.costoReal || 0;
+        const env = t.envioAsumido || 0;
+        const gan = t.gananciaLimpia !== undefined ? t.gananciaLimpia : (t.totalRecibido - cost);
+        
+        if (t.estado !== 'pendiente') {
+            tVentas += t.totalRecibido;
+            tCostos += cost;
+            tEnvios += env;
+            tGanancias += gan;
+        }
+
+        tablaHTML += `
+            <tr>
+                <td>${t.fecha}</td>
+                <td><strong>${t.articulo}</strong></td>
+                <td><span class="${t.estado}">${t.estado.toUpperCase()}</span></td>
+                <td class="monto">$${t.totalRecibido.toLocaleString()}</td>
+                <td class="monto">$${cost.toLocaleString()}</td>
+                <td class="monto">$${env.toLocaleString()}</td>
+                <td class="monto ganancia">$${t.estado === 'pendiente' ? '0' : gan.toLocaleString()}</td>
+            </tr>
+        `;
+    });
+
+    tablaHTML += `
+                </tbody>
+            </table>
+            <div class="totales">
+                <p><strong>Total Facturado Efectivo:</strong> $${tVentas.toLocaleString()} COP</p>
+                <p><strong>Costo de Inversión Vendida:</strong> $${tCostos.toLocaleString()} COP</p>
+                <p><strong>Total Envíos Asumidos:</strong> $${tEnvios.toLocaleString()} COP</p>
+                <p style="font-size:16px; color:#5b21b6;"><strong>Ganancia Limpia Consolidada:</strong> $${tGanancias.toLocaleString()} COP</p>
+            </div>
+            <script>window.print();</script>
+        </body>
+        </html>
+    `;
+
+    printWindow.document.write(tablaHTML);
+    printWindow.document.close();
+};
+
+// ========================================================
+// 🌟 OBSERVACIONES 1 Y 6: CATEGORÍAS Y RENDERIZADO PRIVADO/PÚBLICO
+// ========================================================
+function renderizarCategoriasNavegacion() {
+    const contenedor = document.getElementById("barras-categorias-filtro");
+    if (!contenedor) return;
+
+    const listaCategorias = ["todos", ...new Set(productos.map(p => p.categoria || "General"))];
+    contenedor.innerHTML = "";
+
+    listaCategorias.forEach(cat => {
+        const boton = document.createElement("button");
+        boton.type = "button";
+        boton.className = `px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${categoriaSeleccionada === cat ? 'bg-purple-800 text-white shadow-xs' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`;
+        boton.innerText = cat.charAt(0).toUpperCase() + cat.slice(1);
+        boton.onclick = () => {
+            categoriaSeleccionada = cat;
+            renderizarCategoriasNavegacion();
+            renderizarCatalogoTarjetas();
+        };
+        contenedor.appendChild(boton);
+    });
+}
+
 function renderizarCatalogoTarjetas() {
     const contenedor = document.getElementById("lista-inventario");
     if (!contenedor) return;
     contenedor.innerHTML = "";
 
-    productos.forEach(p => {
+    // Productos Simples (Filtrados por categoría)
+    const productosFiltrados = productos.filter(p => categoriaSeleccionada === "todos" || p.categoria === categoriaSeleccionada);
+
+    productosFiltrados.forEach(p => {
         const div = document.createElement("div");
         div.className = "bg-white p-4 rounded-2xl border border-slate-100 shadow-xs flex gap-3 relative";
+        
+        // OBSERVACIÓN 1: El cliente no ve unidades numéricas de stock, solo disponibilidad visual
+        const tieneStock = p.stock > 0;
+        const textoDisponibilidad = tieneStock ? "✅ Disponible" : "❌ Agotado";
+        const claseStock = tieneStock ? "text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md" : "text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md";
+        const stockVisual = isAdmin ? `Stock: ${p.stock} u.` : textoDisponibilidad;
+
         div.innerHTML = `
             ${p.fotoUrl ? `<img src="${p.fotoUrl}" class="w-16 h-16 rounded-xl object-cover bg-slate-50">` : `<div class="w-16 h-16 rounded-xl bg-purple-50 flex items-center justify-center text-purple-400"><i data-lucide="image" class="w-6 h-6"></i></div>`}
             <div class="flex-1 min-w-0">
-                <h4 class="font-bold text-slate-800 text-xs truncate">${p.nombre}</h4>
+                <div class="flex items-center gap-1.5">
+                    <span class="bg-slate-100 text-slate-600 text-[8px] font-black uppercase px-1 rounded">${p.categoria || 'General'}</span>
+                    <h4 class="font-bold text-slate-800 text-xs truncate">${p.nombre}</h4>
+                </div>
                 <p class="text-[10px] text-slate-400 line-clamp-2 mt-0.5">${p.descripcion || 'Sin descripción comercial'}</p>
                 <div class="flex justify-between items-center mt-2">
                     <span class="text-xs font-black text-purple-900">$${p.precio.toLocaleString()}</span>
-                    <span class="text-[10px] font-bold ${p.stock <= 3 ? 'text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md' : 'text-slate-500'}">Stock: ${p.stock} u.</span>
+                    <span class="text-[10px] font-bold ${isAdmin && p.stock <= 3 ? 'text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md' : claseStock}">${stockVisual}</span>
                 </div>
+                ${tieneStock ? `
+                    <button onclick="window.agregarAlCarritoGlobal('${p.id}', 'prod')" class="w-full mt-2 bg-purple-50 hover:bg-purple-100 text-purple-800 text-[10px] py-1.5 rounded-lg font-black transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                        <i data-lucide="shopping-cart" class="w-3 h-3"></i> Añadir al pedido
+                    </button>
+                ` : ''}
             </div>
             <div class="absolute top-3 right-3 flex gap-1 items-center">
                 <button onclick="window.abrirPopUpMarketing('${p.id}', 'prod')" class="p-1 text-slate-400 hover:text-purple-700" title="Marketing"><i data-lucide="megaphone" class="w-3.5 h-3.5"></i></button>
@@ -564,31 +709,173 @@ function renderizarCatalogoTarjetas() {
         contenedor.appendChild(div);
     });
 
-    combos.forEach(c => {
-        const div = document.createElement("div");
-        div.className = "bg-gradient-to-r from-purple-50/50 to-pink-50/30 p-4 rounded-2xl border border-purple-100 shadow-xs flex gap-3 relative";
-        div.innerHTML = `
-            ${c.fotoUrl ? `<img src="${c.fotoUrl}" class="w-16 h-16 rounded-xl object-cover bg-white">` : `<div class="w-16 h-16 rounded-xl bg-purple-100 flex items-center justify-center text-purple-500"><i data-lucide="package" class="w-6 h-6"></i></div>`}
-            <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-1"><span class="bg-purple-600 text-white text-[8px] font-black uppercase px-1 rounded">Kit</span><h4 class="font-bold text-slate-800 text-xs truncate">${c.nombre}</h4></div>
-                <p class="text-[10px] text-slate-400 line-clamp-2 mt-0.5">${c.descripcion || 'Kit de temporada seleccionado'}</p>
-                <div class="flex justify-between items-center mt-2">
-                    <span class="text-xs font-black text-purple-900">$${c.precioVenta.toLocaleString()}</span>
-                    <span class="text-[9px] font-bold text-purple-600 bg-purple-100/50 px-1.5 py-0.5 rounded-md">Combo Ahorro</span>
+    // Combos y Kits (Aparecen siempre en pestaña 'todos' o si se desea una categoría de kits)
+    if(categoriaSeleccionada === "todos") {
+        combos.forEach(c => {
+            const div = document.createElement("div");
+            div.className = "bg-gradient-to-r from-purple-50/50 to-pink-50/30 p-4 rounded-2xl border border-purple-100 shadow-xs flex gap-3 relative";
+            
+            // Evaluar disponibilidad global del combo basándose en stock real de sus partes
+            const comboDisponible = c.productos.every(cp => {
+                const real = productos.find(p => p.id === cp.id);
+                return real && real.stock >= cp.cantidad;
+            });
+
+            div.innerHTML = `
+                ${c.fotoUrl ? `<img src="${c.fotoUrl}" class="w-16 h-16 rounded-xl object-cover bg-white">` : `<div class="w-16 h-16 rounded-xl bg-purple-100 flex items-center justify-center text-purple-500"><i data-lucide="package" class="w-6 h-6"></i></div>`}
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1"><span class="bg-purple-600 text-white text-[8px] font-black uppercase px-1 rounded">Kit</span><h4 class="font-bold text-slate-800 text-xs truncate">${c.nombre}</h4></div>
+                    <p class="text-[10px] text-slate-400 line-clamp-2 mt-0.5">${c.descripcion || 'Kit de temporada seleccionado'}</p>
+                    <div class="flex justify-between items-center mt-2">
+                        <span class="text-xs font-black text-purple-900">$${c.precioVenta.toLocaleString()}</span>
+                        <span class="text-[9px] font-bold ${comboDisponible ? 'text-purple-600 bg-purple-100/50' : 'text-rose-600 bg-rose-50'} px-1.5 py-0.5 rounded-md">${comboDisponible ? 'Combo Listo' : 'Agotado'}</span>
+                    </div>
+                    ${comboDisponible ? `
+                        <button onclick="window.agregarAlCarritoGlobal('${c.id}', 'combo')" class="w-full mt-2 bg-purple-600 hover:bg-purple-700 text-white text-[10px] py-1.5 rounded-lg font-black transition-colors flex items-center justify-center gap-1 cursor-pointer shadow-xs">
+                            <i data-lucide="shopping-cart" class="w-3 h-3"></i> Añadir Kit al Pedido
+                        </button>
+                    ` : ''}
                 </div>
+                <div class="absolute top-3 right-3 flex gap-1 items-center">
+                    <button onclick="window.abrirPopUpMarketing('${c.id}', 'combo')" class="p-1 text-slate-400 hover:text-purple-700" title="Marketing"><i data-lucide="megaphone" class="w-3.5 h-3.5"></i></button>
+                    ${isAdmin ? `
+                        <button onclick="window.abrirModalCombo('${c.id}')" class="p-1 text-purple-600 hover:text-purple-900" title="Editar Kit"><i data-lucide="edit" class="w-3.5 h-3.5"></i></button>
+                        <button onclick="window.eliminarElementoEfectivo('${c.id}', 'combos', '${c.nombre}')" class="p-1 text-rose-500 hover:text-rose-700" title="Eliminar Kit"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                    ` : ''}
+                </div>
+            `;
+            contenedor.appendChild(div);
+        });
+    }
+
+    lucide.createIcons();
+}
+
+// ========================================================
+// 🌟 OBSERVACIÓN 5: LÓGICA COMPLETA DEL CARRITO DE COMPRAS -> WHATSAPP
+// ========================================================
+function inicializarManejadoresCarrito() {
+    window.agregarAlCarritoGlobal = function(id, tipo) {
+        let itemEncontrado = null;
+        if (tipo === 'prod') {
+            const p = productos.find(x => x.id === id);
+            if(p) itemEncontrado = { id, tipo, nombre: p.nombre, precio: p.precio };
+        } else {
+            const c = combos.find(x => x.id === id);
+            if(c) itemEncontrado = { id, tipo, nombre: `[Kit] ${c.nombre}`, precio: c.precioVenta };
+        }
+
+        if(!itemEncontrado) return;
+
+        const existente = carrito.find(x => x.id === id && x.tipo === tipo);
+        if(existente) {
+            existente.cantidad += 1;
+        } else {
+            itemEncontrado.cantidad = 1;
+            carrito.push(itemEncontrado);
+        }
+
+        localStorage.setItem("daesmi_carrito", JSON.stringify(carrito));
+        actualizarBadgeCarritoVisual();
+        renderizarItemsCarritoModal();
+    };
+
+    window.cambiarCantidadCarrito = function(index, delta) {
+        carrito[index].cantidad += delta;
+        if(carrito[index].cantidad <= 0) {
+            carrito.splice(index, 1);
+        }
+        localStorage.setItem("daesmi_carrito", JSON.stringify(carrito));
+        actualizarBadgeCarritoVisual();
+        renderizarItemsCarritoModal();
+    };
+
+    window.abrirModalCarritoCompleto = function() {
+        renderizarItemsCarritoModal();
+        document.getElementById("modal-carrito-cliente").classList.replace("hidden", "flex");
+    };
+
+    window.cerrarModalCarritoCompleto = function() {
+        document.getElementById("modal-carrito-cliente").classList.replace("flex", "hidden");
+    };
+
+    window.enviarPedidoWhatsApp = function() {
+        if(carrito.length === 0) return alert("Tu carrito está vacío.");
+        
+        let mensaje = `✨ *NUEVO PEDIDO - DAESMI COSMETICS* ✨\n\nHola, me interesa adquirir los siguientes artículos:\n\n`;
+        let total = 0;
+
+        carrito.forEach(item => {
+            const subtotal = item.precio * item.cantidad;
+            total += subtotal;
+            mensaje += `🛍️ *${item.cantidad}x* ${item.nombre} \n   └ Subtotal: $${subtotal.toLocaleString()} COP\n\n`;
+        });
+
+        mensaje += `💵 *TOTAL ESTIMADO:* $${total.toLocaleString()} COP\n\nPor favor, confírmame la disponibilidad para coordinar el envío. 💖📦`;
+        
+        const urlFinal = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(mensaje)}`;
+        
+        // Limpiamos carrito tras confirmación de envío
+        carrito = [];
+        localStorage.removeItem("daesmi_carrito");
+        actualizarBadgeCarritoVisual();
+        window.cerrarModalCarritoCompleto();
+        
+        window.open(urlFinal, '_blank');
+    };
+}
+
+function actualizarBadgeCarritoVisual() {
+    const totalUnidades = carrito.reduce((sum, item) => sum + item.cantidad, 0);
+    const badge = document.getElementById("carrito-badge-conteo");
+    const barraFlotante = document.getElementById("barra-flotante-carrito");
+    
+    if(badge) badge.innerText = totalUnidades;
+    
+    if(barraFlotante) {
+        if(totalUnidades > 0) {
+            barraFlotante.classList.remove("hidden");
+            barraFlotante.classList.add("flex");
+        } else {
+            barraFlotante.classList.remove("flex");
+            barraFlotante.classList.add("hidden");
+        }
+    }
+}
+
+function renderizarItemsCarritoModal() {
+    const contenedor = document.getElementById("carrito-lista-items");
+    const txtTotal = document.getElementById("carrito-total-monto");
+    if(!contenedor) return;
+
+    contenedor.innerHTML = "";
+    let acumuladoTotal = 0;
+
+    if(carrito.length === 0) {
+        contenedor.innerHTML = `<p class="text-xs text-slate-400 italic text-center py-4">No has agregado cosméticos aún.</p>`;
+        if(txtTotal) txtTotal.innerText = "$0";
+        return;
+    }
+
+    carrito.forEach((item, index) => {
+        acumuladoTotal += (item.precio * item.cantidad);
+        const div = document.createElement("div");
+        div.className = "flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs";
+        div.innerHTML = `
+            <div class="flex-1 min-w-0 pr-2">
+                <p class="font-bold text-slate-800 truncate">${item.nombre}</p>
+                <p class="text-[10px] font-black text-purple-900">$${item.precio.toLocaleString()}</p>
             </div>
-            <div class="absolute top-3 right-3 flex gap-1 items-center">
-                <button onclick="window.abrirPopUpMarketing('${c.id}', 'combo')" class="p-1 text-slate-400 hover:text-purple-700" title="Marketing"><i data-lucide="megaphone" class="w-3.5 h-3.5"></i></button>
-                ${isAdmin ? `
-                    <button onclick="window.abrirModalCombo('${c.id}')" class="p-1 text-purple-600 hover:text-purple-900" title="Editar Kit"><i data-lucide="edit" class="w-3.5 h-3.5"></i></button>
-                    <button onclick="window.eliminarElementoEfectivo('${c.id}', 'combos', '${c.nombre}')" class="p-1 text-rose-500 hover:text-rose-700" title="Eliminar Kit"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-                ` : ''}
+            <div class="flex items-center gap-2">
+                <button onclick="window.cambiarCantidadCarrito(${index}, -1)" class="w-6 h-6 bg-slate-200 hover:bg-slate-300 rounded-lg font-bold text-center flex items-center justify-center cursor-pointer">-</button>
+                <span class="font-bold text-slate-800 text-xs w-4 text-center">${item.cantidad}</span>
+                <button onclick="window.agregarAlCarritoGlobal('${item.id}', '${item.tipo}')" class="w-6 h-6 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded-lg font-bold text-center flex items-center justify-center cursor-pointer">+</button>
             </div>
         `;
         contenedor.appendChild(div);
     });
 
-    lucide.createIcons();
+    if(txtTotal) txtTotal.innerText = `$${acumuladoTotal.toLocaleString()}`;
 }
 
 // ========================================================
@@ -660,7 +947,6 @@ window.descartarAlertaTemporal = function(idProducto) {
     verificarAlertasStock();
 };
 
-// 🌟 CORRECCIÓN: Los values de las `<option>` deben calzar exactamente con el mapeo del evento "change" (`prod_` y `combo_`)
 function actualizarSelectoresDeProductos() {
     const selectCombo = document.getElementById("combo-select-producto");
     const selectVenta = document.getElementById("venta-select-item");
@@ -692,14 +978,21 @@ function actualizarSelectoresDeProductos() {
     }
 }
 
+// ========================================================
+// 🌟 OBSERVACIÓN 2: CAPITAL INVERSIÓN Y PRECIO DE VENTA BASE EN COMBOS
+// ========================================================
 function actualizarListaVisualCombo() {
     const lista = document.getElementById("combo-lista-productos-temporal");
     if(!lista) return;
     lista.innerHTML = "";
     
     let costoAcumulado = 0;
+    let precioVentaBaseAcumulado = 0;
+
     productosEnComboTemporal.forEach((p, index) => {
         costoAcumulado += (p.costo * p.cantidad);
+        precioVentaBaseAcumulado += (p.precioIndividual * p.cantidad);
+        
         lista.innerHTML += `
             <li class="flex justify-between items-center text-[11px] bg-slate-50 p-2 rounded-xl border border-slate-100">
                 <span>${p.nombre} (x${p.cantidad})</span>
@@ -710,6 +1003,10 @@ function actualizarListaVisualCombo() {
 
     const infoCosto = document.getElementById("combo-costo-calculado");
     if(infoCosto) infoCosto.innerText = `$${costoAcumulado.toLocaleString()}`;
+
+    // Despliegue visual del precio de venta combinado acumulado para toma de decisiones óptimas
+    const infoPrecioSugerido = document.getElementById("combo-precio-base-sugerido");
+    if(infoPrecioSugerido) infoPrecioSugerido.innerText = `$${precioVentaBaseAcumulado.toLocaleString()}`;
 }
 
 window.quitarItemComboTemporal = function(index) {
@@ -772,18 +1069,17 @@ window.eliminarVentaInteligente = async function(idTransaccion, nombreArticulo) 
 
     } catch (error) {
         console.error("Error al eliminar la transacción:", error);
-        alert("Hubo un error de permisos o conexión al intentar borrar la venta.");
+        alert("Hubo un error de permisos or conexión al intentar borrar la venta.");
     }
 };
 
 // ========================================================
-// 🌟 8. NUEVO MÓDULO: DETALLE DE RECIBO DE VENTA (MODAL FLOTANTE JS)
+// 8. MÓDULO: DETALLE DE RECIBO DE VENTA (MODAL FLOTANTE JS)
 // ========================================================
 window.abrirDetalleReciboVenta = function(idTransaccion) {
     const t = transacciones.find(trans => trans.id === idTransaccion);
     if (!t) return;
 
-    // Crear el contenedor del modal en el body si no existe aún
     let modalRecibo = document.getElementById("modal-recibo-dinamico");
     if (!modalRecibo) {
         modalRecibo = document.createElement("div");
@@ -796,7 +1092,6 @@ window.abrirDetalleReciboVenta = function(idTransaccion) {
     const envioAsumido = t.envioAsumido || 0;
     const gananciaReal = t.gananciaLimpia !== undefined ? t.gananciaLimpia : (t.totalRecibido - costoBase);
 
-    // Inyectamos el diseño tipo recibo de tienda sin tocar tu HTML principal
     modalRecibo.innerHTML = `
         <div class="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div class="text-center border-b border-dashed border-slate-200 pb-3">
@@ -831,14 +1126,12 @@ window.abrirDetalleReciboVenta = function(idTransaccion) {
 };
 
 // ========================================================
-// 🪙 MÓDULO ADMINISTRATIVO DE LA CAJA FUERTE (ACTUALIZACIÓN)
+// 🪙 MÓDULO ADMINISTRATIVO DE LA CAJA FUERTE
 // ========================================================
-
-// 1. Modificar el capital base desde el atajo directo en la tarjeta de caja
 window.ajustarCapitalBaseManual = async function() {
     if (!isAdmin) return alert("Acceso denegado.");
     const nuevoCapital = prompt("Ingresa el nuevo Capital Base (Colchón de dinero en efectivo):", capitalBaseFijo);
-    if (nuevoCapital === null) return; // Cancelado
+    if (nuevoCapital === null) return;
     
     const valorNumerico = parseFloat(nuevoCapital) || 0;
     try {
@@ -849,7 +1142,6 @@ window.ajustarCapitalBaseManual = async function() {
     }
 };
 
-// 2. Modificar el capital base desde la nueva sección de ajustes
 window.actualizarCapitalBaseDesdeAjustes = async function() {
     if (!isAdmin) return alert("Acceso denegado.");
     const input = document.getElementById("input-ajuste-capital");
@@ -865,7 +1157,6 @@ window.actualizarCapitalBaseDesdeAjustes = async function() {
     }
 };
 
-// 3. Control de ventanas emergentes para Retiro de Utilidades
 window.abrirModalRetiro = function() {
     if (!isAdmin) return alert("Solo el administrador puede retirar dinero de las utilidades.");
     document.getElementById("retiro-monto").value = "";
@@ -876,7 +1167,6 @@ window.cerrarModalRetiro = function() {
     document.getElementById("modal-retiro-ganancias").classList.replace("flex", "hidden");
 };
 
-// 4. Procesar y guardar el retiro acumulado en la nube
 window.ejecutarRetiroGanancias = async function() {
     if (!isAdmin) return;
     const montoInput = document.getElementById("retiro-monto");
@@ -884,7 +1174,6 @@ window.ejecutarRetiroGanancias = async function() {
 
     if (montoARetirar <= 0) return alert("Ingresa un monto válido mayor a cero.");
 
-    // Sumamos el nuevo retiro al acumulado histórico en Firebase
     const nuevoTotalRetiros = retirosAcumulados + montoARetirar;
 
     try {
