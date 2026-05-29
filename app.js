@@ -560,24 +560,37 @@ window.abrirPopUpMarketing = function(id, tipo) {
 function verificarAlertasStock() {
     const contenedorAlertas = document.getElementById("contenedor-alertas-stock");
     if (!contenedorAlertas) return;
+
+    // 1. Limpiar el contenido viejo de inmediato
     contenedorAlertas.innerHTML = "";
 
+    // 2. 🌟 BLINDAJE: Si NO eres administrador, forzar el ocultamiento absoluto y salir
+    if (!isAdmin) {
+        contenedorAlertas.classList.add("hidden");
+        return; 
+    }
+
+    // 3. Si eres administrador, evaluar el stock de los productos
     const criticos = productos.filter(p => p.stock <= 3);
 
     if (criticos.length === 0) {
+        // Mostrar el mensaje verde SOLO al administrador
+        contenedorAlertas.classList.remove("hidden");
         contenedorAlertas.innerHTML = `
-            <div class="p-3 bg-emerald-50 text-emerald-800 rounded-xl text-[11px] font-medium flex items-center gap-2">
+            <div class="p-3 bg-emerald-50 text-emerald-800 rounded-xl text-[11px] font-medium flex items-center gap-2 w-full">
                 <span>✅ ¡Excelente! Todo tu inventario cuenta con buen stock.</span>
             </div>
         `;
         return;
     }
 
+    // Si hay productos con bajo stock, mostrárselos al admin
+    contenedorAlertas.classList.remove("hidden");
     criticos.forEach(p => {
         contenedorAlertas.innerHTML += `
-            <div class="p-2.5 rounded-xl text-[11px] flex justify-between items-center ${p.stock === 0 ? 'bg-rose-50 text-rose-900 border-l-4 border-rose-500' : 'bg-amber-50 text-amber-900 border-l-4 border-amber-500'}">
-                <span>⚠️ *${p.nombre}* - Quedan solo ${p.stock} unidades.</span>
-                ${isAdmin ? `<button onclick="window.abrirModalProducto('${p.id}')" class="underline font-bold hover:text-purple-800">Surtir</button>` : ''}
+            <div class="p-2.5 rounded-xl text-[11px] flex justify-between items-center w-full ${p.stock === 0 ? 'bg-rose-50 text-rose-900 border-l-4 border-rose-500' : 'bg-amber-50 text-amber-900 border-l-4 border-amber-500'}">
+                <span>⚠️ <strong>${p.nombre}</strong> - Quedan solo ${p.stock} unidades.</span>
+                <button onclick="window.abrirModalProducto('${p.id}')" class="underline font-bold hover:text-purple-800 ml-2">Surtir</button>
             </div>
         `;
     });
