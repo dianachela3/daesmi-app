@@ -85,7 +85,7 @@ navBalance.addEventListener("click", () => {
     if (isAdmin) mostrarVista(viewBalance, navBalance);
 });
 navAjustes.addEventListener("click", () => {
-    if (isAdmin) mostrarVista(viewAjustes, navAjustes));
+    if (isAdmin) mostrarVista(viewAjustes, navAjustes);
 });
 
 btnEstadoSesion.addEventListener("click", () => {
