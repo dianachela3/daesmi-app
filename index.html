@@ -195,14 +195,17 @@
 
     </main>
 
-    <div id="barra-flotante-carrito" class="fixed bottom-16 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-sm bg-gradient-to-r from-purple-900 to-purple-950 text-white p-3 rounded-2xl shadow-xl hidden justify-between items-center z-40 animate-bounce duration-1000">
+    <!-- ========================================== -->
+    <!-- OBSERVACIÓN 5: BARRA FLOTANTE INTERFAZ CARRITO CLIENTE (CORREGIDA) -->
+    <!-- ========================================== -->
+    <div id="barra-flotante-carrito" class="fixed bottom-20 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-sm bg-gradient-to-r from-purple-900 to-purple-950 text-white p-3.5 rounded-2xl shadow-xl hidden justify-between items-center z-40 animate-pulse">
         <div class="flex items-center gap-2">
-            <div class="bg-white/20 w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs text-white">
+            <div class="bg-white/20 w-6 h-6 rounded-lg flex items-center justify-center font-black text-xs text-white">
                 <span id="carrito-badge-conteo">0</span>
             </div>
-            <p class="text-xs font-bold tracking-wide">Tienes cosméticos listos</p>
+            <p class="text-[11px] font-bold tracking-wide">Productos en tu bolsa</p>
         </div>
-        <button onclick="window.abrirModalCarritoCompleto()" class="bg-white text-purple-950 font-black text-[10px] px-3 py-1.5 rounded-xl transition-transform active:scale-95 uppercase tracking-wider cursor-pointer shadow-xs">
+        <button type="button" onclick="window.abrirModalCarritoCompleto()" class="bg-white text-purple-950 font-black text-[10px] px-3 py-2 rounded-xl active:scale-95 transition-all uppercase tracking-wider cursor-pointer shadow-md shrink-0">
             Ver mi pedido
         </button>
     </div>
