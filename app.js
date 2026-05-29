@@ -829,3 +829,70 @@ window.abrirDetalleReciboVenta = function(idTransaccion) {
 
     modalRecibo.classList.replace("hidden", "flex");
 };
+
+// ========================================================
+// 🪙 MÓDULO ADMINISTRATIVO DE LA CAJA FUERTE (ACTUALIZACIÓN)
+// ========================================================
+
+// 1. Modificar el capital base desde el atajo directo en la tarjeta de caja
+window.ajustarCapitalBaseManual = async function() {
+    if (!isAdmin) return alert("Acceso denegado.");
+    const nuevoCapital = prompt("Ingresa el nuevo Capital Base (Colchón de dinero en efectivo):", capitalBaseFijo);
+    if (nuevoCapital === null) return; // Cancelado
+    
+    const valorNumerico = parseFloat(nuevoCapital) || 0;
+    try {
+        await updateDoc(doc(db, "configuracion", "caja_daesmi"), { capitalBase: valorNumerico });
+        alert(`Capital Base actualizado a: $${valorNumerico.toLocaleString()} COP`);
+    } catch (e) {
+        alert("Error de permisos al actualizar base.");
+    }
+};
+
+// 2. Modificar el capital base desde la nueva sección de ajustes
+window.actualizarCapitalBaseDesdeAjustes = async function() {
+    if (!isAdmin) return alert("Acceso denegado.");
+    const input = document.getElementById("input-ajuste-capital");
+    if (!input || !input.value.trim()) return alert("Por favor ingresa un monto válido.");
+
+    const valor = parseFloat(input.value) || 0;
+    try {
+        await updateDoc(doc(db, "configuracion", "caja_daesmi"), { capitalBase: valor });
+        alert(`¡Éxito! El Capital Base operativo se fijó en $${valor.toLocaleString()} COP.`);
+        input.value = "";
+    } catch (e) {
+        alert("No tienes permisos suficientes para alterar los registros.");
+    }
+};
+
+// 3. Control de ventanas emergentes para Retiro de Utilidades
+window.abrirModalRetiro = function() {
+    if (!isAdmin) return alert("Solo el administrador puede retirar dinero de las utilidades.");
+    document.getElementById("retiro-monto").value = "";
+    document.getElementById("modal-retiro-ganancias").classList.replace("hidden", "flex");
+};
+
+window.cerrarModalRetiro = function() {
+    document.getElementById("modal-retiro-ganancias").classList.replace("flex", "hidden");
+};
+
+// 4. Procesar y guardar el retiro acumulado en la nube
+window.ejecutarRetiroGanancias = async function() {
+    if (!isAdmin) return;
+    const montoInput = document.getElementById("retiro-monto");
+    const montoARetirar = parseFloat(montoInput.value) || 0;
+
+    if (montoARetirar <= 0) return alert("Ingresa un monto válido mayor a cero.");
+
+    // Sumamos el nuevo retiro al acumulado histórico en Firebase
+    const nuevoTotalRetiros = retirosAcumulados + montoARetirar;
+
+    try {
+        await updateDoc(doc(db, "configuracion", "caja_daesmi"), { retiros: nuevoTotalRetiros });
+        alert(`Retiro exitoso de $${montoARetirar.toLocaleString()} COP registrado.\nTu Efectivo Total en Caja se ha recalculado.`);
+        window.cerrarModalRetiro();
+    } catch (error) {
+        console.error(error);
+        alert("Error al intentar asentar el retiro en la base de datos.");
+    }
+};
