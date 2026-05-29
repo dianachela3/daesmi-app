@@ -29,6 +29,7 @@ let idElementoEdicion = null;
 let productosEnComboTemporal = [];
 let filtroFechaActual = "mes"; 
 let isAdmin = false;
+let alertasOcultasTemporalmente = [];
 
 // Al arrancar la página
 document.addEventListener("DOMContentLoaded", () => {
@@ -579,37 +580,51 @@ function verificarAlertasStock() {
     // 1. Limpiar el contenido viejo de inmediato
     contenedorAlertas.innerHTML = "";
 
-    // 2. 🌟 BLINDAJE: Si NO eres administrador, forzar el ocultamiento absoluto y salir
+    // 2. Si NO eres administrador, forzar el ocultamiento absoluto y salir
     if (!isAdmin) {
         contenedorAlertas.classList.add("hidden");
         return; 
     }
 
-    // 3. Si eres administrador, evaluar el stock de los productos
-    const criticos = productos.filter(p => p.stock <= 3);
+    // 3. Filtrar los productos críticos que NO hayan sido descartados temporalmente por ti
+    const criticos = productos.filter(p => p.stock <= 3 && !alertasOcultasTemporalmente.includes(p.id));
 
+    // Si ya no quedan productos críticos visibles (o todos fueron cerrados)
     if (criticos.length === 0) {
-        // Mostrar el mensaje verde SOLO al administrador
-        contenedorAlertas.classList.remove("hidden");
-        contenedorAlertas.innerHTML = `
-            <div class="p-3 bg-emerald-50 text-emerald-800 rounded-xl text-[11px] font-medium flex items-center gap-2 w-full">
-                <span>✅ ¡Excelente! Todo tu inventario cuenta con buen stock.</span>
-            </div>
-        `;
+        // Si hay productos con bajo stock pero decidiste cerrarlos todos, ocultamos el bloque por completo
+        if (productos.some(p => p.stock <= 3)) {
+            contenedorAlertas.classList.add("hidden");
+        } else {
+            // Si realmente todo el inventario está perfecto, mostramos el mensaje verde de buen stock
+            contenedorAlertas.classList.remove("hidden");
+            contenedorAlertas.innerHTML = `
+                <div class="p-3 bg-emerald-50 text-emerald-800 rounded-xl text-[11px] font-medium flex items-center gap-2 w-full">
+                    <span>✅ ¡Excelente! Todo tu inventario cuenta con buen stock.</span>
+                </div>
+            `;
+        }
         return;
     }
 
-    // Si hay productos con bajo stock, mostrárselos al admin
+    // 4. Dibujar las alertas activas con su respectivo botón de cerrar (X)
     contenedorAlertas.classList.remove("hidden");
     criticos.forEach(p => {
         contenedorAlertas.innerHTML += `
-            <div class="p-2.5 rounded-xl text-[11px] flex justify-between items-center w-full ${p.stock === 0 ? 'bg-rose-50 text-rose-900 border-l-4 border-rose-500' : 'bg-amber-50 text-amber-900 border-l-4 border-amber-500'}">
-                <span>⚠️ <strong>${p.nombre}</strong> - Quedan solo ${p.stock} unidades.</span>
-                <button onclick="window.abrirModalProducto('${p.id}')" class="underline font-bold hover:text-purple-800 ml-2">Surtir</button>
+            <div id="alerta-stock-${p.id}" class="p-2.5 rounded-xl text-[11px] flex justify-between items-center w-full mb-2 ${p.stock === 0 ? 'bg-rose-50 text-rose-900 border-l-4 border-rose-500' : 'bg-amber-50 text-amber-900 border-l-4 border-amber-500'}">
+                <div class="flex items-center gap-1.5 flex-1">
+                    <span>⚠️ <strong>${p.nombre}</strong> - Quedan solo ${p.stock} unidades.</span>
+                    <button onclick="window.abrirModalProducto('${p.id}')" class="underline font-bold hover:text-purple-800 ml-1">Surtir</button>
+                </div>
+                <button onclick="window.descartarAlertaTemporal('${p.id}')" class="text-slate-400 hover:text-slate-700 font-black text-xs px-1 ml-2" title="Cerrar aviso temporalmente">✕</button>
             </div>
         `;
     });
 }
+
+window.descartarAlertaTemporal = function(idProducto) {
+    alertasOcultasTemporalmente.push(idProducto);
+    verificarAlertasStock(); // Vuelve a dibujar solo las alertas que quedan activas
+};
 
 function actualizarSelectoresDeProductos() {
     const selectCombo = document.getElementById("combo-select-producto");
