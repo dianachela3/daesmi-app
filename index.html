@@ -265,6 +265,7 @@
         </div>
     </div>
 
+    <!-- MODAL: CREAR / EDITAR PRODUCTO CON VARIACIONES -->
     <div id="modal-producto" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden justify-center items-center z-50 p-4">
         <form id="form-producto" class="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl space-y-3 overflow-y-auto max-h-[90vh]">
             <div class="flex justify-between items-center">
@@ -279,7 +280,7 @@
                 </div>
                 <div>
                     <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Categoría / Línea</label>
-                    <input type="text" id="prod-categoria" placeholder="Ej: Maquillaje, Accesorios, Skincare" required class="w-full bg-slate-50 border p-2 rounded-xl text-xs font-bold focus:outline-hidden">
+                    <input type="text" id="prod-categoria" placeholder="Ej: Maquillaje, Accesorios" required class="w-full bg-slate-50 border p-2 rounded-xl text-xs font-bold focus:outline-hidden">
                 </div>
                 <div>
                     <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Descripción para copy</label>
@@ -289,6 +290,26 @@
                     <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">URL de la Foto</label>
                     <input type="url" id="prod-foto" placeholder="https://..." class="w-full bg-slate-50 border p-2 rounded-xl text-xs focus:outline-hidden">
                 </div>
+
+                <!-- NUEVO SECTOR: ACTIVADOR DE VARIACIONES -->
+                <div class="bg-purple-50/50 p-2.5 rounded-xl border border-purple-100 space-y-2">
+                    <label class="flex items-center gap-1.5 cursor-pointer">
+                        <input type="checkbox" id="prod-tiene-variaciones" class="rounded text-purple-600 focus:ring-purple-500" onchange="document.getElementById('sector-campos-variaciones').classList.toggle('hidden', !this.checked)">
+                        <span class="text-[10px] font-black text-purple-950 uppercase tracking-wide">¿Tiene variaciones? (Color, Estilo, Tono)</span>
+                    </label>
+                    
+                    <div id="sector-campos-variaciones" class="hidden space-y-2 pt-1 border-t border-purple-100">
+                        <div>
+                            <label class="block text-[8px] font-bold text-purple-900 uppercase mb-0.5">Título de la Variación</label>
+                            <input type="text" id="prod-titulo-variacion" placeholder="Ej: Color, Tono, Estilo" class="w-full bg-white border p-1.5 rounded-lg text-xs font-medium focus:outline-hidden">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-bold text-purple-900 uppercase mb-0.5">Opciones (Separadas por comas)</label>
+                            <input type="text" id="prod-opciones-variacion" placeholder="Ej: Negro, Rosado, Azul satinado" class="w-full bg-white border p-1.5 rounded-lg text-xs font-medium focus:outline-hidden">
+                        </div>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-2 gap-2">
                     <div>
                         <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Costo Unitario ($)</label>
