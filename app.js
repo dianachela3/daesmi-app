@@ -119,7 +119,7 @@ function inicializarAutenticacion() {
 }
 
 // ========================================================
-// 2. ESCUCHA DE DATOS EN TIEMPE REAL (FIREBASE)
+// 2. ESCUCHA DE DATOS EN TIEMPO REAL (FIREBASE)
 // ========================================================
 function escucharDatosFirebase() {
     onSnapshot(query(collection(db, "productos"), orderBy("nombre")), (snapshot) => {
@@ -138,6 +138,20 @@ function escucharDatosFirebase() {
     onSnapshot(query(collection(db, "transacciones"), orderBy("timestamp", "desc")), (snapshot) => {
         transacciones = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         procesarYRenderizarBalance();
+    });
+
+    // 🌟 CORRECCIÓN: Invocamos aquí de forma nativa la escucha de la caja fuerte para que no quede aislada
+    onSnapshot(doc(db, "configuracion", "caja_daesmi"), (docSnap) => {
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            capitalBaseFijo = data.capitalBase || 0;
+            retirosAcumulados = data.retiros || 0;
+        } else {
+            setDoc(doc(db, "configuracion", "caja_daesmi"), { capitalBase: 0, retiros: 0 });
+        }
+        if (transacciones.length > 0) {
+            procesarYRenderizarBalance();
+        }
     });
 }
 
@@ -229,7 +243,6 @@ function inicializarNavegacionYModales() {
     });
 
     // Añadir item temporal al combo
-    // Busca esta sección en tu app.js y reemplázala:
     document.getElementById("btn-agregar-item-combo").addEventListener("click", () => {
         const select = document.getElementById("combo-select-producto");
         if (!select.value) return;
@@ -240,12 +253,11 @@ function inicializarNavegacionYModales() {
         if (existe) { 
             existe.cantidad += 1; 
         } else { 
-            // 🌟 CORRECCIÓN: Guardamos también el precio individual para la matemática comercial
             productosEnComboTemporal.push({ 
                 id: prod.id, 
                 nombre: prod.nombre, 
                 costo: prod.costo, 
-                precioIndividual: prod.precio, // <-- Agregamos esto
+                precioIndividual: prod.precio,
                 cantidad: 1 
             }); 
         }
@@ -263,7 +275,6 @@ function inicializarNavegacionYModales() {
         let costoTotalVenta = 0;
         let nombreArticulo = "";
     
-        // 🌟 1. LEER SI ASUMISTE ENVÍO Y CUÁNTO FUE
         const asumioEnvioRadio = document.querySelector('input[name="asumio-envio"]:checked')?.value || "no";
         let envioAsumido = 0;
         if (asumioEnvioRadio === "si") {
@@ -295,21 +306,19 @@ function inicializarNavegacionYModales() {
             nombreArticulo = `[Kit] ${combo.nombre}`;
         }
     
-        // 🌟 2. CALCULAR GANANCIA REAL (Precio cobrado - Costos - Envío asumido)
         const gananciaCalculada = (precioCobrado - costoTotalVenta) - envioAsumido;
     
         await addDoc(collection(db, "transacciones"), {
             articulo: nombreArticulo,
             totalRecibido: precioCobrado,
             costoReal: costoTotalVenta,
-            envioAsumido: envioAsumido, // 🌟 Guardamos el registro por si quieres auditar luego
-            gananciaLimpia: gananciaCalculada, // 🌟 Aquí viaja la ganancia ya castigada con el envío
+            envioAsumido: envioAsumido,
+            gananciaLimpia: gananciaCalculada,
             estado,
             fecha: new Date().toLocaleString("es-CO", { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit', hour12: true }),
             timestamp: Date.now()
         });
     
-        // 🌟 3. LIMPIAR EL FORMULARIO DE ENVÍOS PARA LA PRÓXIMA VENTA
         if (document.getElementById("venta-envio-asumido")) {
             document.getElementById("venta-envio-asumido").value = "0";
             document.getElementById("contenedor-envio-asumido").classList.add("hidden");
@@ -457,13 +466,15 @@ function procesarYRenderizarBalance() {
 
         if(contenedorHistorial) {
             const div = document.createElement("div");
-            div.className = "bg-white p-3 rounded-xl border border-slate-100 shadow-xs flex justify-between items-center text-xs gap-2";
+            // 🌟 MODIFICACIÓN: Se añade cursor-pointer, hover y evento click para detonar el recibo detallado de la venta
+            div.className = "bg-white p-3 rounded-xl border border-slate-100 shadow-xs flex justify-between items-center text-xs gap-2 cursor-pointer hover:bg-purple-50/40 transition-all";
+            div.onclick = () => window.abrirDetalleReciboVenta(t.id);
             div.innerHTML = `
                 <div class="flex-1 min-w-0">
                     <p class="font-bold text-slate-800 truncate">${t.articulo}</p>
                     <p class="text-[10px] text-slate-400">${t.fecha}</p>
                 </div>
-                <div class="text-right flex items-center gap-2">
+                <div class="text-right flex items-center gap-2" onclick="event.stopPropagation();">
                     <div>
                         <p class="font-black ${t.estado === 'pendiente' ? 'text-amber-600' : 'text-emerald-600'}">$${t.totalRecibido.toLocaleString()}</p>
                         <span class="text-[9px] uppercase font-bold tracking-wider ${t.estado === 'pendiente' ? 'text-amber-700 bg-amber-50' : 'text-emerald-700 bg-emerald-50'} px-1.5 py-0.5 rounded-md">${t.estado}</span>
@@ -484,7 +495,7 @@ function procesarYRenderizarBalance() {
     if(document.getElementById("bal-total-costos")) document.getElementById("bal-total-costos").innerText = `-$${totalCostos.toLocaleString()}`;
     if(document.getElementById("bal-total-deudas")) document.getElementById("bal-total-deudas").innerText = `$${totalDeudas.toLocaleString()}`;
     
-    // 🌟 NUEVAS LÍNEAS PARA ACTUALIZAR LOS DATOS DE LA CAJA FUERTE DAESMI
+    // Cálculos de la caja fuerte real en base a utilidades históricas acumuladas
     const utilidadLibre = totalGanancias - retirosAcumulados;
     const efectivoTotalCaja = capitalBaseFijo + utilidadLibre;
 
@@ -522,14 +533,13 @@ function calcularTopProductos(listaTransacciones) {
 }
 
 // ========================================================
-// 6. ADAPTACIÓN DE RENDERIZADO DEL CATÁLOGO DE TARJETAS (CORREGIDO CON ELIMINAR)
+// 6. ADAPTACIÓN DE RENDERIZADO DEL CATÁLOGO DE TARJETAS
 // ========================================================
 function renderizarCatalogoTarjetas() {
     const contenedor = document.getElementById("lista-inventario");
     if (!contenedor) return;
     contenedor.innerHTML = "";
 
-    // 1. Renderizar Productos Simples
     productos.forEach(p => {
         const div = document.createElement("div");
         div.className = "bg-white p-4 rounded-2xl border border-slate-100 shadow-xs flex gap-3 relative";
@@ -554,7 +564,6 @@ function renderizarCatalogoTarjetas() {
         contenedor.appendChild(div);
     });
 
-    // 2. Renderizar Kits / Combos Armados
     combos.forEach(c => {
         const div = document.createElement("div");
         div.className = "bg-gradient-to-r from-purple-50/50 to-pink-50/30 p-4 rounded-2xl border border-purple-100 shadow-xs flex gap-3 relative";
@@ -587,7 +596,6 @@ function renderizarCatalogoTarjetas() {
 // ========================================================
 window.abrirPopUpMarketing = function(id, tipo) {
     let titulo = "", desc = "", precio = 0;
-    
     if (tipo === 'prod') {
         const p = productos.find(prod => prod.id === id);
         if(p) { titulo = p.nombre; desc = p.descripcion || ""; precio = p.precio; }
@@ -599,8 +607,6 @@ window.abrirPopUpMarketing = function(id, tipo) {
     document.getElementById("mkt-preview-titulo").innerText = titulo;
     document.getElementById("mkt-preview-desc").innerText = desc;
     document.getElementById("mkt-preview-precio").innerText = `$${precio.toLocaleString()}`;
-
-    // Construcción del copy comercial automático
     document.getElementById("mkt-texto-copy").value = `✨ ¡Miren este espectacular artículo disponible en DAESMI! ✨\n\n🛍️ *${titulo}*\n📝 ${desc}\n\n💵 *Precio imperdible:* $${precio.toLocaleString()} COP\n\nEscríbenos directamente para agendar tu pedido antes de que se agote. 💖📦`;
 
     const modalMkt = document.getElementById("modal-marketing");
@@ -612,26 +618,19 @@ window.abrirPopUpMarketing = function(id, tipo) {
 function verificarAlertasStock() {
     const contenedorAlertas = document.getElementById("contenedor-alertas-stock");
     if (!contenedorAlertas) return;
-
-    // 1. Limpiar el contenido viejo de inmediato
     contenedorAlertas.innerHTML = "";
 
-    // 2. Si NO eres administrador, forzar el ocultamiento absoluto y salir
     if (!isAdmin) {
         contenedorAlertas.classList.add("hidden");
         return; 
     }
 
-    // 3. Filtrar los productos críticos que NO hayan sido descartados temporalmente por ti
     const criticos = productos.filter(p => p.stock <= 3 && !alertasOcultasTemporalmente.includes(p.id));
 
-    // Si ya no quedan productos críticos visibles (o todos fueron cerrados)
     if (criticos.length === 0) {
-        // Si hay productos con bajo stock pero decidiste cerrarlos todos, ocultamos el bloque por completo
         if (productos.some(p => p.stock <= 3)) {
             contenedorAlertas.classList.add("hidden");
         } else {
-            // Si realmente todo el inventario está perfecto, mostramos el mensaje verde de buen stock
             contenedorAlertas.classList.remove("hidden");
             contenedorAlertas.innerHTML = `
                 <div class="p-3 bg-emerald-50 text-emerald-800 rounded-xl text-[11px] font-medium flex items-center gap-2 w-full">
@@ -642,7 +641,6 @@ function verificarAlertasStock() {
         return;
     }
 
-    // 4. Dibujar las alertas activas con su respectivo botón de cerrar (X)
     contenedorAlertas.classList.remove("hidden");
     criticos.forEach(p => {
         contenedorAlertas.innerHTML += `
@@ -659,9 +657,10 @@ function verificarAlertasStock() {
 
 window.descartarAlertaTemporal = function(idProducto) {
     alertasOcultasTemporalmente.push(idProducto);
-    verificarAlertasStock(); // Vuelve a dibujar solo las alertas que quedan activas
+    verificarAlertasStock();
 };
 
+// 🌟 CORRECCIÓN: Los values de las `<option>` deben calzar exactamente con el mapeo del evento "change" (`prod_` y `combo_`)
 function actualizarSelectoresDeProductos() {
     const selectCombo = document.getElementById("combo-select-producto");
     const selectVenta = document.getElementById("venta-select-item");
@@ -718,10 +717,8 @@ window.quitarItemComboTemporal = function(index) {
     actualizarListaVisualCombo();
 }
 
-// Función global para eliminar cosméticos o kits de forma segura
 window.eliminarElementoEfectivo = async function(id, coleccion, nombre) {
     const confirmar = confirm(`¿Estás completamente segura de que deseas eliminar "${nombre}" de DAESMI? Esta acción no se puede deshacer.`);
-
     if (confirmar) {
         try {
             await deleteDoc(doc(db, coleccion, id));
@@ -733,31 +730,22 @@ window.eliminarElementoEfectivo = async function(id, coleccion, nombre) {
     }
 };
 
-// 🌟 FUNCIÓN NUEVA: Eliminar una venta preguntando si devuelve stock
 window.eliminarVentaInteligente = async function(idTransaccion, nombreArticulo) {
-    // 1. Primera confirmación básica
     const confirmarBorrado = confirm(`¿Estás segura de eliminar la venta de "${nombreArticulo}"?\nEsta acción la quitará de los reportes y balances.`);
     if (!confirmarBorrado) return;
 
-    // 2. Buscar si la transacción tiene guardado un ID de producto para saber qué reponer
-    // Necesitamos inspeccionar la transacción directamente desde nuestro estado local
     const trans = transacciones.find(t => t.id === idTransaccion);
     if (!trans) return alert("No se encontró la información de la transacción.");
 
-    // 3. Preguntar si se devuelve la mercancía al inventario físico
-    const devolverStock = confirm(`🔄 ¿Deseas regresar este producto al INVENTARIO?\n\n[Aceptar] = Sí, la mercancía vuelve a estar disponible para la venta.\n[Cancelar] = No, la mercancía se perdió/dañó o fue un ajuste manual.`);
+    const devolverStock = confirm(`🔄 ¿Deseas regresar este producto al INVENTARIO?\n\n[Aceptar] = Sí, la mercancía vuelve a estar disponible para la venta.\n[Cancelar] = No, la mercancía se perdió o fue un ajuste manual.`);
 
     try {
-        // Si el usuario marcó que SÍ quiere devolver el stock
         if (devolverStock) {
-            // Evaluamos si lo que se vendió fue un Kit o un Producto Individual
             if (nombreArticulo.startsWith("[Kit]")) {
-                // Es un combo. Debemos buscar el combo en nuestra lista para ver sus componentes
                 const comboNombreLimpio = nombreArticulo.replace("[Kit] ", "");
                 const comboOriginal = combos.find(c => c.nombre === comboNombreLimpio);
                 
                 if (comboOriginal && comboOriginal.productos) {
-                    // Recorremos los productos que armaban ese kit y les devolvemos su cantidad
                     for (let item of comboOriginal.productos) {
                         const prodInventario = productos.find(p => p.id === item.id);
                         if (prodInventario) {
@@ -768,7 +756,6 @@ window.eliminarVentaInteligente = async function(idTransaccion, nombreArticulo) 
                     }
                 }
             } else {
-                // Es un producto individual simple. Buscamos por nombre o por aproximación en nuestro estado
                 const prodInventario = productos.find(p => p.nombre === nombreArticulo);
                 if (prodInventario) {
                     await updateDoc(doc(db, "productos", prodInventario.id), {
@@ -780,7 +767,6 @@ window.eliminarVentaInteligente = async function(idTransaccion, nombreArticulo) 
             }
         }
 
-        // 4. Finalmente, borrar la transacción de Firebase
         await deleteDoc(doc(db, "transacciones", idTransaccion));
         alert("Transacción eliminada correctamente. Tus balances se han actualizado.");
 
@@ -790,19 +776,56 @@ window.eliminarVentaInteligente = async function(idTransaccion, nombreArticulo) 
     }
 };
 
-function iniciarEscuchaCajaFuerte() {
-    onSnapshot(doc(db, "configuracion", "caja_daesmi"), (docSnap) => {
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            capitalBaseFijo = data.capitalBase || 0;
-            retirosAcumulados = data.retiros || 0;
-        } else {
-            // Si es la primera vez y no existe en Firebase, lo creamos en ceros
-            setDoc(doc(db, "configuracion", "caja_daesmi"), { capitalBase: 0, retiros: 0 });
-        }
-        // Cada vez que cambie la configuración, refrescamos la pantalla
-        if (typeof procesarYRenderizarBalance === "function" && transacciones.length > 0) {
-            procesarYRenderizarBalance();
-        }
-    });
-}
+// ========================================================
+// 🌟 8. NUEVO MÓDULO: DETALLE DE RECIBO DE VENTA (MODAL FLOTANTE JS)
+// ========================================================
+window.abrirDetalleReciboVenta = function(idTransaccion) {
+    const t = transacciones.find(trans => trans.id === idTransaccion);
+    if (!t) return;
+
+    // Crear el contenedor del modal en el body si no existe aún
+    let modalRecibo = document.getElementById("modal-recibo-dinamico");
+    if (!modalRecibo) {
+        modalRecibo = document.createElement("div");
+        modalRecibo.id = "modal-recibo-dinamico";
+        modalRecibo.className = "fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden justify-center items-center z-50 p-4";
+        document.body.appendChild(modalRecibo);
+    }
+
+    const costoBase = t.costoReal || 0;
+    const envioAsumido = t.envioAsumido || 0;
+    const gananciaReal = t.gananciaLimpia !== undefined ? t.gananciaLimpia : (t.totalRecibido - costoBase);
+
+    // Inyectamos el diseño tipo recibo de tienda sin tocar tu HTML principal
+    modalRecibo.innerHTML = `
+        <div class="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div class="text-center border-b border-dashed border-slate-200 pb-3">
+                <h4 class="font-black text-purple-900 text-sm tracking-tight">DAESMI COSMETICS</h4>
+                <p class="text-[9px] text-slate-400 uppercase tracking-widest font-bold">Comprobante de Operación</p>
+            </div>
+            
+            <div class="space-y-2 text-xs">
+                <div class="flex justify-between gap-4"><span class="text-slate-400 font-medium">Artículo:</span><span class="font-bold text-slate-800 text-right max-w-[200px] truncate">${t.articulo}</span></div>
+                <div class="flex justify-between"><span class="text-slate-400 font-medium">Fecha y Hora:</span><span class="text-slate-700 font-medium">${t.fecha}</span></div>
+                <div class="flex justify-between"><span class="text-slate-400 font-medium">Estado Pago:</span><span class="px-1.5 py-0.2 bg-purple-50 text-purple-700 rounded-sm font-bold uppercase text-[9px]">${t.estado}</span></div>
+                
+                <hr class="border-slate-100 my-2">
+                
+                <div class="flex justify-between text-slate-700"><span>Cobrado al Cliente:</span><span class="font-bold text-emerald-600">+$${t.totalRecibido.toLocaleString()}</span></div>
+                <div class="flex justify-between text-slate-400"><span>Costo de Mercancía:</span><span class="font-medium">-$${costoBase.toLocaleString()}</span></div>
+                <div class="flex justify-between text-slate-400"><span>Envío Subsidiado:</span><span class="font-medium ${envioAsumido > 0 ? 'text-rose-500 font-bold' : ''}">-$${envioAsumido.toLocaleString()}</span></div>
+                
+                <div class="bg-purple-50/70 p-2.5 rounded-xl flex justify-between items-center mt-3 border border-purple-100/50">
+                    <span class="font-bold text-purple-950 text-[11px] uppercase tracking-wider">Utilidad Real:</span>
+                    <span class="font-black text-purple-900 text-sm">$${gananciaReal.toLocaleString()}</span>
+                </div>
+            </div>
+
+            <button onclick="document.getElementById('modal-recibo-dinamico').classList.replace('flex', 'hidden')" class="w-full bg-slate-900 text-white p-2.5 rounded-xl font-bold text-xs mt-2 transition-colors cursor-pointer hover:bg-slate-800">
+                Cerrar Comprobante
+            </button>
+        </div>
+    `;
+
+    modalRecibo.classList.replace("hidden", "flex");
+};
