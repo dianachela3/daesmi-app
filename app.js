@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { 
-    getFirestore, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy 
+    getFirestore, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { 
     getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged 
@@ -226,17 +226,25 @@ function inicializarNavegacionYModales() {
     });
 
     // Añadir item temporal al combo
+    // Busca esta sección en tu app.js y reemplázala:
     document.getElementById("btn-agregar-item-combo").addEventListener("click", () => {
         const select = document.getElementById("combo-select-producto");
         if (!select.value) return;
         const prod = productos.find(p => p.id === select.value);
         if (!prod) return;
-
+    
         const existe = productosEnComboTemporal.find(p => p.id === prod.id);
         if (existe) { 
             existe.cantidad += 1; 
         } else { 
-            productosEnComboTemporal.push({ id: prod.id, nombre: prod.nombre, costo: prod.costo, cantidad: 1 }); 
+            // 🌟 CORRECCIÓN: Guardamos también el precio individual para la matemática comercial
+            productosEnComboTemporal.push({ 
+                id: prod.id, 
+                nombre: prod.nombre, 
+                costo: prod.costo, 
+                precioIndividual: prod.precio, // <-- Agregamos esto
+                cantidad: 1 
+            }); 
         }
         actualizarListaVisualCombo();
     });
@@ -477,14 +485,14 @@ function calcularTopProductos(listaTransacciones) {
 }
 
 // ========================================================
-// 6. ADAPTACIÓN DE RENDERIZADO DEL CATÁLOGO DE TARJETAS
+// 6. ADAPTACIÓN DE RENDERIZADO DEL CATÁLOGO DE TARJETAS (CORREGIDO CON ELIMINAR)
 // ========================================================
 function renderizarCatalogoTarjetas() {
     const contenedor = document.getElementById("lista-inventario");
     if (!contenedor) return;
     contenedor.innerHTML = "";
 
-    // Unificar productos y combos en una sola vista limpia
+    // 1. Renderizar Productos Simples
     productos.forEach(p => {
         const div = document.createElement("div");
         div.className = "bg-white p-4 rounded-2xl border border-slate-100 shadow-xs flex gap-3 relative";
@@ -498,14 +506,18 @@ function renderizarCatalogoTarjetas() {
                     <span class="text-[10px] font-bold ${p.stock <= 3 ? 'text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md' : 'text-slate-500'}">Stock: ${p.stock} u.</span>
                 </div>
             </div>
-            <div class="absolute top-3 right-3 flex gap-1">
-                <button onclick="window.abrirPopUpMarketing('${p.id}', 'prod')" class="p-1 text-slate-400 hover:text-purple-700"><i data-lucide="megaphone" class="w-3.5 h-3.5"></i></button>
-                ${isAdmin ? `<button onclick="window.abrirModalProducto('${p.id}')" class="p-1 text-purple-600 hover:text-purple-900"><i data-lucide="edit" class="w-3.5 h-3.5"></i></button>` : ''}
+            <div class="absolute top-3 right-3 flex gap-1 items-center">
+                <button onclick="window.abrirPopUpMarketing('${p.id}', 'prod')" class="p-1 text-slate-400 hover:text-purple-700" title="Marketing"><i data-lucide="megaphone" class="w-3.5 h-3.5"></i></button>
+                ${isAdmin ? `
+                    <button onclick="window.abrirModalProducto('${p.id}')" class="p-1 text-purple-600 hover:text-purple-900" title="Editar"><i data-lucide="edit" class="w-3.5 h-3.5"></i></button>
+                    <button onclick="window.eliminarElementoEfectivo('${p.id}', 'productos', '${p.nombre}')" class="p-1 text-rose-500 hover:text-rose-700" title="Eliminar"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                ` : ''}
             </div>
         `;
         contenedor.appendChild(div);
     });
 
+    // 2. Renderizar Kits / Combos Armados
     combos.forEach(c => {
         const div = document.createElement("div");
         div.className = "bg-gradient-to-r from-purple-50/50 to-pink-50/30 p-4 rounded-2xl border border-purple-100 shadow-xs flex gap-3 relative";
@@ -519,15 +531,18 @@ function renderizarCatalogoTarjetas() {
                     <span class="text-[9px] font-bold text-purple-600 bg-purple-100/50 px-1.5 py-0.5 rounded-md">Combo Ahorro</span>
                 </div>
             </div>
-            <div class="absolute top-3 right-3 flex gap-1">
-                <button onclick="window.abrirPopUpMarketing('${c.id}', 'combo')" class="p-1 text-slate-400 hover:text-purple-700"><i data-lucide="megaphone" class="w-3.5 h-3.5"></i></button>
-                ${isAdmin ? `<button onclick="window.abrirModalCombo('${c.id}')" class="p-1 text-purple-600 hover:text-purple-900"><i data-lucide="edit" class="w-3.5 h-3.5"></i></button>` : ''}
+            <div class="absolute top-3 right-3 flex gap-1 items-center">
+                <button onclick="window.abrirPopUpMarketing('${c.id}', 'combo')" class="p-1 text-slate-400 hover:text-purple-700" title="Marketing"><i data-lucide="megaphone" class="w-3.5 h-3.5"></i></button>
+                ${isAdmin ? `
+                    <button onclick="window.abrirModalCombo('${c.id}')" class="p-1 text-purple-600 hover:text-purple-900" title="Editar Kit"><i data-lucide="edit" class="w-3.5 h-3.5"></i></button>
+                    <button onclick="window.eliminarElementoEfectivo('${c.id}', 'combos', '${c.nombre}')" class="p-1 text-rose-500 hover:text-rose-700" title="Eliminar Kit"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                ` : ''}
             </div>
         `;
         contenedor.appendChild(div);
     });
 
-    lucide.createIcons(); // Vuelve a renderizar todos los iconos en pantalla de forma segura
+    lucide.createIcons();
 }
 
 // ========================================================
@@ -651,3 +666,18 @@ window.quitarItemComboTemporal = function(index) {
     productosEnComboTemporal.splice(index, 1);
     actualizarListaVisualCombo();
 }
+
+// Función global para eliminar cosméticos o kits de forma segura
+window.eliminarElementoEfectivo = async function(id, coleccion, nombre) {
+    const confirmar = confirm(`¿Estás completamente segura de que deseas eliminar "${nombre}" de DAESMI? Esta acción no se puede deshacer.`);
+
+    if (confirmar) {
+        try {
+            await deleteDoc(doc(db, coleccion, id));
+            alert(`"${nombre}" ha sido eliminado correctamente.`);
+        } catch (error) {
+            console.error("Error al eliminar:", error);
+            alert("Hubo un error de permisos en Firebase al intentar eliminar el elemento.");
+        }
+    }
+};
