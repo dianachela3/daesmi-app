@@ -389,9 +389,11 @@ function renderizarCatalogoYAlertas() {
                 `;
             }
 
+            const fotoValidaTop = (p.foto && p.foto !== 'undefined') ? p.foto : 'https://placehold.co/300x350/eae6f8/6b21a8?text=DAESMI';
+            
             const cardTop = `
                 <div class="bg-gradient-to-r from-purple-900 to-purple-950 text-white p-2.5 rounded-2xl flex gap-3 items-center relative overflow-hidden shadow-sm">
-                    <img src="${p.foto}" class="w-12 h-12 object-cover rounded-xl bg-white/10 shrink-0">
+                    <img src="${fotoValidaTop}" class="w-12 h-12 object-cover rounded-xl bg-white/10 shrink-0">
                     <div class="flex-1 min-w-0">
                         <p class="text-[8px] font-black uppercase tracking-widest text-pink-300">🔥 LOS MÁS AMADOS</p>
                         <h4 class="font-bold text-xs truncate leading-tight">${p.nombre}</h4>
@@ -451,6 +453,9 @@ function renderizarCatalogoYAlertas() {
         if (p.nombre.toLowerCase().includes(terminoBusqueda) || p.categoria.toLowerCase().includes(terminoBusqueda)) {
             const enStock = parseInt(p.stock) > 0;
             
+            // 🌟 AQUÍ SE COLOCA: Validación para evitar el error de ruta 'undefined' en la imagen
+            const fotoValida = (p.foto && p.foto !== 'undefined') ? p.foto : 'https://placehold.co/300x350/eae6f8/6b21a8?text=DAESMI';
+
             // Selector dinámico si el producto tiene variaciones creadas
             let selectorVariacionHTML = '';
             if (p.variacion && p.variacion.opciones && p.variacion.opciones.length > 0) {
@@ -466,7 +471,8 @@ function renderizarCatalogoYAlertas() {
 
             const cardProd = `
                 <div class="bg-white p-3 rounded-3xl border border-slate-100 shadow-2xs flex gap-3 relative ${!enStock && !isAdmin ? 'opacity-50' : ''}">
-                    <img src="${p.foto}" class="w-20 h-20 object-cover rounded-2xl bg-slate-50 self-center shrink-0">
+                    <!-- 🌟 AQUÍ SE CAMBIA: Se usa ${fotoValida} en lugar de ${p.foto} -->
+                    <img src="${fotoValida}" class="w-20 h-20 object-cover rounded-2xl bg-slate-50 self-center shrink-0">
                     <div class="flex-1 flex flex-col justify-between">
                         <div>
                             <div class="flex justify-between items-start">
