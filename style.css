@@ -1,0 +1,49 @@
+/* DAESMI - Custom Stylesheet */
+
+/* Suavizar transiciones globales */
+.transition-all {
+    transition: all 0.2s ease-in-out;
+}
+
+/* Scrollbar personalizado para los modales de administración */
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Clases de utilidad para optimizar legibilidad en HTML */
+.btn-nav-active {
+    color: #6b21a8 !important;
+    font-weight: 700 !important;
+}
+
+.btn-nav-inactive {
+    color: #94a3b8 !important;
+    font-weight: 500 !important;
+}
+
+/* Evitar saltos bruscos al alternar vistas */
+section {
+    animation: fadeIn 0.25s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(2px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
