@@ -6,7 +6,7 @@ import {
     getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-// Configuración de Firebase
+// Configuración de Firebase (Mantén tus credenciales reales aquí)
 const firebaseConfig = {
   apiKey: "AIzaSyAzW2B3R_TxTojtp8Vw0iS3C2APO2Pmi5A",
   authDomain: "daesmi-8a93c.firebaseapp.com",
@@ -22,1017 +22,842 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 // Estado Global de la Aplicación
-let listaProductosGlobal = [];
-let listaCombosGlobal = [];
-let listaTransaccionesGlobal = [];
-let carritoGlobal = [];
+let productos = [];
+let combos = [];
+let transacciones = [];
+let idElementoEdicion = null;
+let productosEnComboTemporal = [];
+let filtroFechaActual = "mes"; 
+let isAdmin = false;
+let alertasOcultasTemporalmente = [];
+let capitalBaseFijo = 0;
+let retirosAcumulados = 0;
 
-// Variables Contables de Control
-let capitalBaseGlobal = 0; 
-let retirosAcumulados = 0;  
-let isAdmin = false;       
-
-// Filtros y Busbadores activos en la interfaz
-let categoriaSeleccionadaGlobal = "TODOS";
-let terminoBusqueda = "";
-
-// Elementos del DOM reutilizados frecuentemente
-const contenedorCatalogo = document.getElementById("contenedor-catalogo");
-const contenedorCategorias = document.getElementById("contenedor-categorias");
-const buscadorInput = document.getElementById("buscador-input");
-
-const navInventario = document.getElementById("nav-inventario");
-const navBalance = document.getElementById("nav-balance");
-const navAjustes = document.getElementById("nav-ajustes");
-
-const viewCatalogo = document.getElementById("view-catalogo");
-const viewInventario = document.getElementById("view-inventario");
-const viewBalance = document.getElementById("view-balance");
-const viewAjustes = document.getElementById("view-ajustes");
-
-// Escuchas de Navegación Inferior
-if (navInventario) navInventario.addEventListener("click", () => mostrarVista(viewInventario, navInventario));
-if (navBalance) navBalance.addEventListener("click", () => {
-    if (isAdmin) mostrarVista(viewBalance, navBalance);
-});
-if (navAjustes) navAjustes.addEventListener("click", () => {
-    if (isAdmin) mostrarVista(viewAjustes, navAjustes);
+// Al arrancar la página
+document.addEventListener("DOMContentLoaded", () => {
+    inicializarNavegacionYModales();
+    inicializarAutenticacion();
+    escucharDatosFirebase();
+    configurarSelectoresFiltro();
 });
 
-// Función para alternar vistas visibles en la interfaz monopágina
-function mostrarVista(vistaObjetivo, botonActivo) {
-    [viewCatalogo, viewInventario, viewBalance, viewAjustes].forEach(v => {
-        if (v) v.classList.add("hidden");
-    });
-    if (vistaObjetivo) vistaObjetivo.classList.remove("hidden");
+// ========================================================
+// 1. SISTEMA DE AUTENTICACIÓN (LOGIN CONTROL)
+// ========================================================
+function inicializarAutenticacion() {
+    const btnEstadoSesion = document.getElementById("btn-estado-sesion");
+    const txtEstadoSesion = document.getElementById("txt-estado-sesion");
+    const formLogin = document.getElementById("form-login");
+    const btnCancelLogin = document.getElementById("btn-cancelar-login");
+    const btnCerrarSesion = document.getElementById("btn-cerrar-sesion");
 
-    [navInventario, navBalance, navAjustes].forEach(btn => {
-        if (btn) {
-            btn.classList.remove("text-purple-900", "scale-110");
-            btn.classList.add("text-slate-400");
-        }
-    });
-
-    if (botonActivo) {
-        botonActivo.classList.remove("text-slate-400");
-        botonActivo.classList.add("text-purple-900", "scale-110");
-    }
-}
-
-// Variables para controlar y apagar las escuchas en tiempo real de Firebase
-let desuscribirTransacciones = null;
-let desuscribirCaja = null;
-
-// ==========================================
-// ESCUCHAS DE FIREBASE REESTRUCTURADAS
-// ==========================================
-
-function iniciarEscuchasPublicas() {
-    // Escucha de Productos: Abierta al público
-    onSnapshot(query(collection(db, "productos"), orderBy("nombre", "asc")), (snapshot) => {
-        listaProductosGlobal = [];
-        snapshot.forEach(doc => {
-            listaProductosGlobal.push({ id: doc.id, ...doc.data() });
-        });
-        renderizarCatalogoYAlertas();
-        renderizarTablaInventarioAdmin();
-        actualizarSelectVinculacionCombos();
-    }, (error) => {
-        console.error("Error en productos públicos:", error);
-    });
-
-    // Escucha de Combos: Abierta al público
-    onSnapshot(collection(db, "combos"), (snapshot) => {
-        listaCombosGlobal = [];
-        snapshot.forEach(doc => {
-            listaCombosGlobal.push({ id: doc.id, ...doc.data() });
-        });
-        renderizarCatalogoYAlertas();
-        renderizarTablaCombosAdmin();
-    }, (error) => {
-        console.error("Error en combos públicos:", error);
-    });
-}
-
-function iniciarEscuchasPrivadasAdmin() {
-    if (desuscribirTransacciones) desuscribirTransacciones();
-    if (desuscribirCaja) desuscribirCaja();
-
-    // Escucha de Transacciones (Solo Admin logueado)
-    desuscribirTransacciones = onSnapshot(query(collection(db, "transacciones"), orderBy("fecha", "desc")), (snapshot) => {
-        listaTransaccionesGlobal = [];
-        snapshot.forEach(doc => {
-            listaTransaccionesGlobal.push({ id: doc.id, ...doc.data() });
-        });
-        renderizarBalanceAdmin();
-        renderizarHistorialVentasAdmin();
-    }, (error) => {
-        console.warn("Bloqueo de seguridad en transacciones:", error.message);
-    });
-
-    // Escucha de Caja Fuerte (Solo Admin logueado)
-    desuscribirCaja = onSnapshot(doc(db, "configuracion", "caja_daesmi"), (snapshot) => {
-        if (snapshot.exists()) {
-            const data = snapshot.data();
-            capitalBaseGlobal = data.capitalBase || 0;
-            retirosAcumulados = data.retiros || 0;
-            renderizarBalanceAdmin();
-        }
-    }, (error) => {
-        console.warn("Bloqueo de seguridad en caja fuerte:", error.message);
-    });
-}
-
-function monitorearSesion() {
+    // Escuchar cambios de estado en la sesión
     onAuthStateChanged(auth, (user) => {
-        const btnEstado = document.getElementById("btn-estado-sesion");
-        const txtEstado = document.getElementById("txt-estado-sesion");
-
         if (user) {
             isAdmin = true;
-            if (txtEstado) txtEstado.textContent = "Admin";
-            if (btnEstado) {
-                btnEstado.classList.replace("bg-purple-100", "bg-emerald-100");
-                btnEstado.classList.replace("text-purple-800", "text-emerald-800");
+            txtEstadoSesion.innerText = "Panel Admin";
+            document.getElementById("nav-balance").classList.remove("hidden");
+            document.getElementById("nav-ajustes").classList.remove("hidden");
+            document.getElementById("wrapper-acciones-inventario").classList.remove("hidden");
+            
+            // Si el admin estaba en el login, redirigir a caja
+            if (!document.getElementById("view-login").classList.contains("hidden")) {
+                window.cambiarVistaEfectiva("view-balance", document.getElementById("nav-balance"));
             }
-            iniciarEscuchasPrivadasAdmin();
         } else {
             isAdmin = false;
-            if (txtEstado) txtEstado.textContent = "Login";
-            if (btnEstado) {
-                btnEstado.classList.replace("bg-emerald-100", "bg-purple-100");
-                btnEstado.classList.replace("text-emerald-800", "text-purple-800");
-            }
-
-            if (desuscribirTransacciones) { desuscribirTransacciones(); desuscribirTransacciones = null; }
-            if (desuscribirCaja) { desuscribirCaja(); desuscribirCaja = null; }
-
-            listaTransaccionesGlobal = [];
-            capitalBaseGlobal = 0;
-            retirosAcumulados = 0;
-
-            mostrarVista(viewCatalogo, null);
+            txtEstadoSesion.innerText = "Login";
+            document.getElementById("nav-balance").classList.add("hidden");
+            document.getElementById("nav-ajustes").classList.add("hidden");
+            document.getElementById("wrapper-acciones-inventario").classList.add("hidden");
+            window.cambiarVistaEfectiva("view-inventario", document.getElementById("nav-inventario"));
         }
-        renderizarCatalogoYAlertas();
-    });
-}
-
-// ==========================================
-// RENDERIZADO DEL CATÁLOGO PÚBLICO
-// ==========================================
-
-function renderizarCatalogoYAlertas() {
-    if (!contenedorCatalogo) return;
-    contenedorCatalogo.innerHTML = "";
-
-    // 1. COMPONENTE: SECCIÓN HIGHLIGHT / TOP 3 MÁS AMADOS
-    const productosConVentas = listaProductosGlobal.filter(p => (p.ventasCount || 0) > 0);
-    productosConVentas.sort((a, b) => (b.ventasCount || 0) - (a.ventasCount || 0));
-    const top3 = productosConVentas.slice(0, 3);
-
-    if (top3.length > 0 && categoriaSeleccionadaGlobal === "TODOS" && terminoBusqueda === "") {
-        let topHTML = `
-            <div class="col-span-full mb-2">
-                <h3 class="text-xs font-black text-purple-950 uppercase tracking-wider flex items-center gap-1 mb-2">
-                    <span>✨ Los más amados por nuestras clientas</span>
-                </h3>
-                <div class="grid grid-cols-1 gap-2">
-        `;
-
-        top3.forEach(p => {
-            const fotoValidaTop = (p.foto && p.foto !== 'undefined') ? p.foto : 'https://placehold.co/300x350/eae6f8/6b21a8?text=DAESMI';
-            topHTML += `
-                <div class="bg-gradient-to-r from-purple-900 to-purple-950 text-white p-2.5 rounded-2xl flex gap-3 items-center relative overflow-hidden shadow-sm">
-                    <img src="${fotoValidaTop}" class="w-12 h-12 object-cover rounded-xl bg-white/10 shrink-0">
-                    <div class="flex-1 min-w-0">
-                        <span class="text-[7px] font-black uppercase tracking-widest bg-white/20 px-1 py-0.5 rounded-sm text-purple-200">Recomendado</span>
-                        <h4 class="font-bold text-xs truncate mt-0.5">${p.nombre}</h4>
-                        <p class="text-[11px] font-black text-purple-200">$${p.precio.toLocaleString()}</p>
-                    </div>
-                    <button type="button" onclick="window.agregarAlCarritoConVariacion('${p.id}', false)" class="bg-white text-purple-950 p-2 rounded-xl font-black text-xs cursor-pointer active:scale-95 transition-all shadow-xs shrink-0">
-                        <i data-lucide=\"plus\" class=\"w-4 h-4\"></i>
-                    </button>
-                </div>
-            `;
-        });
-
-        topHTML += `</div></div>`;
-        contenedorCatalogo.insertAdjacentHTML("beforeend", topHTML);
-    }
-
-    // 2. COMPONENTE: RENDERIZADO DE COMBOS DESTACADOS
-    listaCombosGlobal.forEach(c => {
-        if (categoriaSeleccionadaGlobal !== "TODOS") return; 
-        if (terminoBusqueda !== "" && !c.nombre.toLowerCase().includes(terminoBusqueda)) return;
-
-        const enStockCombo = parseInt(c.stock) > 0;
-        const fotoValidaCombo = (c.foto && c.foto !== 'undefined') ? c.foto : 'https://placehold.co/300x350/eae6f8/6b21a8?text=DAESMI';
-
-        const cardCombo = `
-            <div class="bg-linear-to-br from-purple-900 to-indigo-950 text-white p-3.5 rounded-3xl shadow-md flex gap-3 relative col-span-full overflow-hidden border border-purple-800 ${!enStockCombo && !isAdmin ? 'opacity-40' : ''}">
-                <div class="absolute -right-6 -top-6 w-16 h-16 bg-purple-500/20 rounded-full blur-xl"></div>
-                <img src="${fotoValidaCombo}" class="w-20 h-20 object-cover rounded-2xl bg-white/10 self-center shrink-0 border border-white/10">
-                <div class="flex-1 flex flex-col justify-between z-10">
-                    <div>
-                        <div class="flex justify-between items-start">
-                            <span class="text-[8px] font-black bg-pink-500 text-white px-1.5 py-0.5 rounded-md uppercase tracking-wider shadow-xs">Combo Ahorro 🔥</span>
-                            ${isAdmin ? `<span class="text-[9px] font-bold bg-white/10 text-purple-200 px-1.5 py-0.5 rounded-md">Stock: ${c.stock}</span>` : ''}
-                        </div>
-                        <h4 class="font-bold text-sm leading-tight mt-1.5 text-pink-100">${c.nombre}</h4>
-                        <p class="text-[10px] text-purple-200/80 line-clamp-2 mt-0.5 font-medium">${c.descripcion || ''}</p>
-                    </div>
-                    <div class="flex justify-between items-center mt-3">
-                        <div class="flex flex-col">
-                            <span class="font-black text-white text-base">$${c.precio.toLocaleString()}</span>
-                            ${isAdmin ? `<span class="text-[8px] text-purple-300/70 font-bold">Costo calcul.: $${c.costo.toLocaleString()}</span>` : ''}
-                        </div>
-                        <div class="flex gap-1">
-                            ${isAdmin ? `
-                                <button type="button" onclick="window.abrirEditarCombo('${c.id}')" class="bg-white/10 hover:bg-white/20 text-white p-1.5 rounded-xl text-xs font-bold cursor-pointer"><i data-lucide=\"edit\" class=\"w-3.5 h-3.5\"></i></button>
-                                <button type="button" onclick="window.eliminarComboNube('${c.id}')" class="bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 p-1.5 rounded-xl text-xs font-bold cursor-pointer"><i data-lucide=\"trash\" class=\"w-3.5 h-3.5\"></i></button>
-                            ` : `
-                                <button type="button" ${enStockCombo ? `onclick="window.agregarAlCarritoConVariacion('${c.id}', true)"` : 'disabled'} class="${enStockCombo ? 'bg-pink-500 hover:bg-pink-600 text-white cursor-pointer active:scale-95' : 'bg-white/10 text-white/40 cursor-not-allowed'} px-3 py-1.5 rounded-xl font-black text-xs transition-all shadow-md flex items-center gap-1">
-                                    <i data-lucide="${enStockCombo ? 'shopping-bag' : 'slash'}" class="w-3.5 h-3.5"></i> Lo quiero
-                                </button>
-                            `}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        contenedorCatalogo.insertAdjacentHTML("beforeend", cardCombo);
+        renderizarCatalogoTarjetas(); // Re-renderizar para ocultar/mostrar botones de edición
     });
 
-    // 3. COMPONENTE: INYECTAR PRODUCTOS FÍSICOS SIMPLES
-    listaProductosGlobal.forEach(p => {
-        if (categoriaSeleccionadaGlobal !== "TODOS" && p.categoria.trim().toUpperCase() !== categoriaSeleccionadaGlobal) return;
-
-        if (p.nombre.toLowerCase().includes(terminoBusqueda) || p.categoria.toLowerCase().includes(terminoBusqueda)) {
-            const enStock = parseInt(p.stock) > 0;
-            const fotoValida = (p.foto && p.foto !== 'undefined') ? p.foto : 'https://placehold.co/300x350/eae6f8/6b21a8?text=DAESMI';
-
-            let selectorVariacionHTML = '';
-            if (p.variacion && p.variacion.opciones && p.variacion.opciones.length > 0) {
-                selectorVariacionHTML = `
-                    <div class="mt-1.5">
-                        <label class="block text-[8px] font-black text-purple-900 uppercase mb-0.5">Elegir ${p.variacion.titulo}:</label>
-                        <select id="select-variant-${p.id}" class="w-full bg-slate-50 border border-slate-200 p-1 rounded-xl text-[11px] font-bold text-slate-700 focus:outline-hidden">
-                            ${p.variacion.opciones.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
-                        </select>
-                    </div>
-                `;
+    // Manejo del click en Login / Panel Superior
+    if (btnEstadoSesion) {
+        btnEstadoSesion.addEventListener("click", () => {
+            if (isAdmin) {
+                window.cambiarVistaEfectiva("view-ajustes", document.getElementById("nav-ajustes"));
+            } else {
+                window.cambiarVistaEfectiva("view-login", null);
             }
-
-            const cardProd = `
-                <div class="bg-white p-3 rounded-3xl border border-slate-100 shadow-2xs flex gap-3 relative ${!enStock && !isAdmin ? 'opacity-50' : ''}">
-                    <img src="${fotoValida}" class="w-20 h-20 object-cover rounded-2xl bg-slate-50 self-center shrink-0">
-                    <div class="flex-1 flex flex-col justify-between">
-                        <div>
-                            <div class="flex justify-between items-start">
-                                <span class="text-[8px] font-black text-purple-600 uppercase tracking-wider">${p.categoria}</span>
-                                ${isAdmin ? `<span class="text-[9px] font-bold ${enStock ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'} px-1.5 py-0.5 rounded-md">Stock: ${p.stock}</span>` : ''}
-                            </div>
-                            <h4 class="font-bold text-slate-800 text-xs leading-tight mt-0.5">${p.nombre}</h4>
-                            <p class="text-[10px] text-slate-400 line-clamp-1 mt-0.5">${p.descripcion || ''}</p>
-                            ${selectorVariacionHTML}
-                        </div>
-                        <div class="flex justify-between items-center mt-2">
-                            <div class="flex flex-col">
-                                <span class="font-black text-purple-950 text-sm">$${p.precio.toLocaleString()}</span>
-                                ${isAdmin ? `<span class="text-[8px] text-slate-400 font-bold">Costo: $${p.costo.toLocaleString()}</span>` : ''}
-                            </div>
-                            <div class="flex gap-1">
-                                ${isAdmin ? `
-                                    <button type="button" onclick="window.abrirEditarProducto('${p.id}')" class="bg-slate-100 text-slate-700 p-1.5 rounded-xl text-xs font-bold cursor-pointer"><i data-lucide=\"edit\" class=\"w-3.5 h-3.5\"></i></button>
-                                    <button type="button" onclick="window.eliminarProductoNube('${p.id}')" class="bg-rose-50 text-rose-600 p-1.5 rounded-xl text-xs font-bold cursor-pointer"><i data-lucide=\"trash\" class=\"w-3.5 h-3.5\"></i></button>
-                                ` : `
-                                    <button type="button" ${enStock ? `onclick="window.agregarAlCarritoConVariacion('${p.id}', false)"` : 'disabled'} class="${enStock ? 'bg-purple-900 text-white cursor-pointer active:scale-95' : 'bg-slate-200 text-slate-400 cursor-not-allowed'} p-1.5 rounded-xl font-bold transition-all shadow-xs">
-                                        <i data-lucide="${enStock ? 'plus' : 'slash'}" class="w-4 h-4"></i>
-                                    </button>
-                                `}
-                                ${isAdmin ? `
-                                    <button type="button" onclick="window.detonarMarketingProducto('${p.id}')" class="bg-purple-100 text-purple-800 p-1.5 rounded-xl text-xs font-bold cursor-pointer"><i data-lucide=\"megaphone\" class=\"w-3.5 h-3.5\"></i></button>
-                                ` : ''}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            contenedorCatalogo.insertAdjacentHTML("beforeend", cardProd);
-        }
-    });
-
-    if (contenedorCatalogo.innerHTML === "") {
-        contenedorCatalogo.innerHTML = `
-            <div class="col-span-full py-12 text-center">
-                <p class="text-xs font-bold text-slate-400">No encontramos productos en esta sección justo ahora.</p>
-            </div>
-        `;
-    }
-
-    if (window.lucide) window.lucide.createIcons();
-}
-
-// ==========================================
-// RENDERIZADO DE LAS CATEGORÍAS (INTERFAZ)
-// ==========================================
-
-function renderizarMenuCategorias() {
-    if (!contenedorCategorias) return;
-    const setCategorias = new Set(["TODOS"]);
-    listaProductosGlobal.forEach(p => {
-        if (p.categoria) setCategorias.add(p.categoria.trim().toUpperCase());
-    });
-
-    contenedorCategorias.innerHTML = "";
-    setCategorias.forEach(cat => {
-        const esActivo = categoriaSeleccionadaGlobal === cat;
-        const btnCat = document.createElement("button");
-        btnCat.type = "button";
-        btnCat.className = `px-3.5 py-1.5 rounded-full text-xs font-black tracking-wide whitespace-nowrap transition-all cursor-pointer ${
-            esActivo 
-            ? "bg-purple-900 text-white shadow-xs" 
-            : "bg-white text-slate-500 border border-slate-100 hover:bg-slate-50"
-        }`;
-        btnCat.textContent = cat;
-        btnCat.addEventListener("click", () => {
-            categoriaSeleccionadaGlobal = cat;
-            renderizarMenuCategorias();
-            renderizarCatalogoYAlertas();
         });
-        contenedorCategorias.appendChild(btnCat);
-    });
-}
-
-// Escucha del Buscador en tiempo real
-if (buscadorInput) {
-    buscadorInput.addEventListener("input", (e) => {
-        terminoBusqueda = e.target.value.toLowerCase().trim();
-        renderizarCatalogoYAlertas();
-    });
-}
-
-// ==========================================
-// INTERFACES DEL PANEL DE ADMINISTRACIÓN (INVENTARIO)
-// ==========================================
-
-function renderizarTablaInventarioAdmin() {
-    const tabla = document.getElementById("tabla-inventario-cuerpo");
-    if (!tabla) return;
-    tabla.innerHTML = "";
-
-    listaProductosGlobal.forEach(p => {
-        const tr = document.createElement("tr");
-        tr.className = "border-b border-slate-100 text-slate-700 text-xs font-medium";
-        tr.innerHTML = `
-            <td class="p-2 font-bold text-slate-900">${p.nombre}</td>
-            <td class="p-2 uppercase text-[10px] font-black text-purple-600">${p.categoria}</td>
-            <td class="p-2 font-bold">$${p.precio.toLocaleString()}</td>
-            <td class="p-2 text-center font-black ${parseInt(p.stock) <= 2 ? 'text-rose-600 bg-rose-50/50' : 'text-slate-600'}">${p.stock}</td>
-        `;
-        tabla.appendChild(tr);
-    });
-}
-
-function renderizarTablaCombosAdmin() {
-    const tabla = document.getElementById("tabla-combos-cuerpo");
-    if (!tabla) return;
-    tabla.innerHTML = "";
-
-    listaCombosGlobal.forEach(c => {
-        const tr = document.createElement("tr");
-        tr.className = "border-b border-slate-100 text-slate-700 text-xs font-medium";
-        tr.innerHTML = `
-            <td class="p-2 font-bold text-purple-950">${c.nombre}</td>
-            <td class="p-2 font-bold">$${c.precio.toLocaleString()}</td>
-            <td class="p-2 text-center font-black">${c.stock}</td>
-        `;
-        tabla.appendChild(tr);
-    });
-}
-
-function actualizarSelectVinculacionCombos() {
-    const contenedor = document.getElementById("combo-productos-vinculados");
-    if (!contenedor) return;
-    contenedor.innerHTML = "";
-
-    if (listaProductosGlobal.length === 0) {
-        contenedor.innerHTML = `<p class="text-[10px] font-bold text-slate-400">No hay productos guardados para vincular.</p>`;
-        return;
     }
 
-    listaProductosGlobal.forEach(p => {
-        const div = document.createElement("div");
-        div.className = "flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-100";
-        div.innerHTML = `
-            <input type="checkbox" value="${p.id}" data-nombre="${p.nombre}" data-costo="${p.costo}" class="chk-combo-prod w-3.5 h-3.5 text-purple-600 rounded-sm focus:ring-purple-500">
-            <div class="flex-1 min-w-0">
-                <p class="text-[11px] font-bold text-slate-800 truncate">${p.nombre}</p>
-                <p class="text-[9px] text-slate-400 font-bold">Costo: $${p.costo.toLocaleString()}</p>
-            </div>
-        `;
-        contenedor.appendChild(div);
-    });
+    if (btnCancelLogin) {
+        btnCancelLogin.addEventListener("click", () => {
+            window.cambiarVistaEfectiva("view-inventario", document.getElementById("nav-inventario"));
+        });
+    }
+
+    // Procesar Formulario de Login
+    if (formLogin) {
+        formLogin.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const email = document.getElementById("login-email").value.trim();
+            const password = document.getElementById("login-password").value;
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                formLogin.reset();
+            } catch (error) {
+                console.error(error);
+                alert("Credenciales inválidas. Por favor verifica tu correo y contraseña.");
+            }
+        });
+    }
+
+    // Procesar Cierre de Sesión
+    if (btnCerrarSesion) {
+        btnCerrarSesion.addEventListener("click", async () => {
+            await signOut(auth);
+            alert("Sesión cerrada correctamente.");
+        });
+    }
 }
 
-// ==========================================
-// INTERFACES DEL PANEL DE ADMINISTRACIÓN (BALANCES)
-// ==========================================
-
-function renderizarBalanceAdmin() {
-    if (!isAdmin) return;
-
-    let totalVentasContadas = 0;
-    let totalInversionEnBodega = 0;
-    let rentabilidadBrutaTeorica = 0;
-
-    listaProductosGlobal.forEach(p => {
-        const stk = parseInt(p.stock) || 0;
-        const cst = parseFloat(p.costo) || 0;
-        totalInversionEnBodega += (stk * cst);
+// ========================================================
+// 2. ESCUCHA DE DATOS EN TIEMPO REAL (FIREBASE)
+// ========================================================
+function escucharDatosFirebase() {
+    onSnapshot(query(collection(db, "productos"), orderBy("nombre")), (snapshot) => {
+        productos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        actualizarSelectoresDeProductos();
+        renderizarCatalogoTarjetas();
+        verificarAlertasStock();
     });
 
-    listaCombosGlobal.forEach(c => {
-        const stk = parseInt(c.stock) || 0;
-        const cst = parseFloat(c.costo) || 0;
-        totalInversionEnBodega += (stk * cst);
+    onSnapshot(query(collection(db, "combos"), orderBy("nombre")), (snapshot) => {
+        combos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        actualizarSelectoresDeProductos();
+        renderizarCatalogoTarjetas();
     });
 
-    listaTransaccionesGlobal.forEach(t => {
-        const totalVenta = parseFloat(t.total) || 0;
-        const costoVenta = parseFloat(t.costoTotalCalculado) || 0;
-
-        totalVentasContadas += totalVenta;
-        rentabilidadBrutaTeorica += (totalVenta - costoVenta);
+    onSnapshot(query(collection(db, "transacciones"), orderBy("timestamp", "desc")), (snapshot) => {
+        transacciones = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        procesarYRenderizarBalance();
     });
 
-    const efectivoTeoricoEnCaja = capitalBaseGlobal + totalVentasContadas - retirosAcumulados;
-    const utilidadesNetasActuales = rentabilidadBrutaTeorica - retirosAcumulados;
-
-    const kpiCaja = document.getElementById("kpi-efectivo-caja");
-    const kpiVentas = document.getElementById("kpi-ventas-totales");
-    const kpiGanancias = document.getElementById("kpi-ganancias-netas");
-    const kpiBodega = document.getElementById("kpi-inversion-bodega");
-
-    if (kpiCaja) kpiCaja.textContent = `$${efectivoTeoricoEnCaja.toLocaleString()} COP`;
-    if (kpiVentas) kpiVentas.textContent = `$${totalVentasContadas.toLocaleString()} COP`;
-    if (kpiBodega) kpiBodega.textContent = `$${totalInversionEnBodega.toLocaleString()} COP`;
-    
-    if (kpiGanancias) {
-        kpiGanancias.textContent = `$${utilidadesNetasActuales.toLocaleString()} COP`;
-        if (utilidadesNetasActuales < 0) {
-            kpiGanancias.className = "text-xl font-black text-rose-600";
+    // 🌟 CORRECCIÓN: Invocamos aquí de forma nativa la escucha de la caja fuerte para que no quede aislada
+    onSnapshot(doc(db, "configuracion", "caja_daesmi"), (docSnap) => {
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            capitalBaseFijo = data.capitalBase || 0;
+            retirosAcumulados = data.retiros || 0;
         } else {
-            kpiGanancias.className = "text-xl font-black text-purple-950";
+            setDoc(doc(db, "configuracion", "caja_daesmi"), { capitalBase: 0, retiros: 0 });
         }
-    }
+        if (transacciones.length > 0) {
+            procesarYRenderizarBalance();
+        }
+    });
 }
 
-function renderizarHistorialVentasAdmin() {
-    const contenedor = document.getElementById("historial-ventas-lista");
-    if (!contenedor) return;
-    contenedor.innerHTML = "";
+// ========================================================
+// 3. NAVEGACIÓN Y APERTURA DE MODALES
+// ========================================================
+function inicializarNavegacionYModales() {
+    const btnBalance = document.getElementById("nav-balance");
+    const btnInventario = document.getElementById("nav-inventario");
+    const btnAjustes = document.getElementById("nav-ajustes");
+    const botones = [btnBalance, btnInventario, btnAjustes];
 
-    if (listaTransaccionesGlobal.length === 0) {
-        contenedor.innerHTML = `
-            <div class="py-6 text-center border border-dashed border-slate-200 rounded-2xl">
-                <p class="text-[11px] font-bold text-slate-400">Aún no se registran transacciones en el libro de ventas.</p>
-            </div>
-        `;
-        return;
-    }
-
-    listaTransaccionesGlobal.forEach(t => {
-        const div = document.createElement("div");
-        div.className = "bg-white p-3 rounded-2xl border border-slate-100 shadow-3xs space-y-1.5 relative";
+    window.cambiarVistaEfectiva = function(vistaActivaId, bActivo) {
+        document.querySelectorAll("section").forEach(s => s.classList.add("hidden"));
+        const targetSection = document.getElementById(vistaActivaId);
+        if (targetSection) targetSection.classList.remove("hidden");
         
-        let productosCompradosHTML = "";
-        t.items.forEach(it => {
-            productosCompradosHTML += `
-                <div class="flex justify-between text-[11px] text-slate-600 font-medium">
-                    <span>• ${it.nombre} ${it.variacionElegida ? `(${it.variacionElegida})` : ''} <b class="text-slate-400">x${it.cantidad}</b></span>
-                    <span class="font-bold text-slate-800">$${(it.precio * it.cantidad).toLocaleString()}</span>
+        botones.forEach(b => { 
+            if(b) {
+                b.classList.remove("text-purple-800", "font-bold");
+                b.classList.add("text-slate-400"); 
+            }
+        });
+        if(bActivo) { 
+            bActivo.classList.remove("text-slate-400");
+            bActivo.classList.add("text-purple-800", "font-bold"); 
+        }
+    };
+
+    if(btnBalance) btnBalance.addEventListener("click", () => cambiarVistaEfectiva("view-balance", btnBalance));
+    if(btnInventario) btnInventario.addEventListener("click", () => cambiarVistaEfectiva("view-inventario", btnInventario));
+    if(btnAjustes) btnAjustes.addEventListener("click", () => cambiarVistaEfectiva("view-ajustes", btnAjustes));
+
+    const btnDashVenta = document.getElementById("btn-dash-venta");
+    const btnDashCombo = document.getElementById("btn-dash-combo");
+    if(btnDashVenta) btnDashVenta.addEventListener("click", () => abrirModalVenta());
+    if(btnDashCombo) btnDashCombo.addEventListener("click", () => abrirModalCombo());
+
+    const btnNuevoProd = document.getElementById("btn-nuevo-producto");
+    const btnNuevoCombo = document.getElementById("btn-nuevo-combo");
+    if(btnNuevoProd) btnNuevoProd.addEventListener("click", () => abrirModalProducto(null));
+    if(btnNuevoCombo) btnNuevoCombo.addEventListener("click", () => abrirModalCombo(null));
+
+    document.getElementById("btn-cerrar-modal-prod").addEventListener("click", () => cerrarModal("modal-producto"));
+    document.getElementById("btn-cerrar-modal-combo").addEventListener("click", () => cerrarModal("modal-combo"));
+    document.getElementById("btn-cerrar-modal-venta").addEventListener("click", () => cerrarModal("modal-venta"));
+
+    // Guardar Producto
+    document.getElementById("form-producto").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const nombre = document.getElementById("prod-nombre").value.trim();
+        const descripcion = document.getElementById("prod-descripcion").value.trim();
+        const fotoUrl = document.getElementById("prod-foto").value.trim();
+        const costo = parseFloat(document.getElementById("prod-costo").value) || 0;
+        const precio = parseFloat(document.getElementById("prod-precio").value) || 0;
+        const stock = parseInt(document.getElementById("prod-stock").value) || 0;
+
+        const payload = { nombre, descripcion, fotoUrl, costo, precio, stock, activo: true };
+
+        if (idElementoEdicion) {
+            await updateDoc(doc(db, "productos", idElementoEdicion), payload);
+        } else {
+            await addDoc(collection(db, "productos"), payload);
+        }
+        cerrarModal("modal-producto");
+    });
+
+    // Guardar Combo
+    document.getElementById("form-combo").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (productosEnComboTemporal.length === 0) return alert("Por favor, añade al menos un producto al kit.");
+        const nombre = document.getElementById("combo-nombre").value.trim();
+        const descripcion = document.getElementById("combo-descripcion").value.trim();
+        const fotoUrl = document.getElementById("combo-foto").value.trim();
+        const precioVenta = parseFloat(document.getElementById("combo-precio-venta").value) || 0;
+        const costoTotal = productosEnComboTemporal.reduce((sum, p) => sum + (p.costo * p.cantidad), 0);
+
+        const payload = { 
+            nombre, descripcion, fotoUrl, precioVenta, costoTotal, 
+            ganancia: precioVenta - costoTotal, productos: productosEnComboTemporal, activo: true 
+        };
+
+        if (idElementoEdicion) {
+            await updateDoc(doc(db, "combos", idElementoEdicion), payload);
+        } else {
+            await addDoc(collection(db, "combos"), payload);
+        }
+        cerrarModal("modal-combo");
+    });
+
+    // Añadir item temporal al combo
+    document.getElementById("btn-agregar-item-combo").addEventListener("click", () => {
+        const select = document.getElementById("combo-select-producto");
+        if (!select.value) return;
+        const prod = productos.find(p => p.id === select.value);
+        if (!prod) return;
+    
+        const existe = productosEnComboTemporal.find(p => p.id === prod.id);
+        if (existe) { 
+            existe.cantidad += 1; 
+        } else { 
+            productosEnComboTemporal.push({ 
+                id: prod.id, 
+                nombre: prod.nombre, 
+                costo: prod.costo, 
+                precioIndividual: prod.precio,
+                cantidad: 1 
+            }); 
+        }
+        actualizarListaVisualCombo();
+    });
+
+    // Registrar Venta
+    document.getElementById("form-venta").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const itemId = document.getElementById("venta-select-item").value;
+        if (!itemId) return;
+    
+        const estado = document.getElementById("venta-estado-pago").value;
+        const precioCobrado = parseFloat(document.getElementById("venta-precio-final").value) || 0;
+        let costoTotalVenta = 0;
+        let nombreArticulo = "";
+    
+        const asumioEnvioRadio = document.querySelector('input[name="asumio-envio"]:checked')?.value || "no";
+        let envioAsumido = 0;
+        if (asumioEnvioRadio === "si") {
+            envioAsumido = parseFloat(document.getElementById("venta-envio-asumido").value) || 0;
+        }
+    
+        if (itemId.startsWith("prod_")) {
+            const cleanId = itemId.replace("prod_", "");
+            const prod = productos.find(p => p.id === cleanId);
+            if (!prod || prod.stock < 1) return alert("¡Alerta! No quedan existencias de este producto.");
+            
+            await updateDoc(doc(db, "productos", cleanId), { stock: prod.stock - 1 });
+            costoTotalVenta = prod.costo;
+            nombreArticulo = prod.nombre;
+        } else {
+            const cleanId = itemId.replace("combo_", "");
+            const combo = combos.find(c => c.id === cleanId);
+            if (!combo) return;
+    
+            for (let item of combo.productos) {
+                const orig = productos.find(p => p.id === item.id);
+                if (!orig || orig.stock < item.cantidad) return alert(`Stock insuficiente del componente: ${item.nombre}`);
+            }
+            for (let item of combo.productos) {
+                const orig = productos.find(p => p.id === item.id);
+                await updateDoc(doc(db, "productos", item.id), { stock: orig.stock - item.cantidad });
+            }
+            costoTotalVenta = combo.costoTotal;
+            nombreArticulo = `[Kit] ${combo.nombre}`;
+        }
+    
+        const gananciaCalculada = (precioCobrado - costoTotalVenta) - envioAsumido;
+    
+        await addDoc(collection(db, "transacciones"), {
+            articulo: nombreArticulo,
+            totalRecibido: precioCobrado,
+            costoReal: costoTotalVenta,
+            envioAsumido: envioAsumido,
+            gananciaLimpia: gananciaCalculada,
+            estado,
+            fecha: new Date().toLocaleString("es-CO", { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit', hour12: true }),
+            timestamp: Date.now()
+        });
+    
+        if (document.getElementById("venta-envio-asumido")) {
+            document.getElementById("venta-envio-asumido").value = "0";
+            document.getElementById("contenedor-envio-asumido").classList.add("hidden");
+            const radioNo = document.querySelector('input[name="asumio-envio"][value="no"]');
+            if (radioNo) radioNo.checked = true;
+        }
+    
+        cerrarModal("modal-venta");
+    });
+
+    document.getElementById("venta-select-item").addEventListener("change", (e) => {
+        const val = e.target.value;
+        let precio = 0;
+        if (val.startsWith("prod_")) precio = productos.find(p => p.id === val.replace("prod_", ""))?.precio || 0;
+        if (val.startsWith("combo_")) precio = combos.find(c => c.id === val.replace("combo_", ""))?.precioVenta || 0;
+        document.getElementById("venta-precio-final").value = precio;
+    });
+
+    const btnCopy = document.getElementById("btn-copiar-copy");
+    if(btnCopy) {
+        btnCopy.addEventListener("click", () => {
+            const tx = document.getElementById("mkt-texto-copy");
+            if(!tx.value) return;
+            navigator.clipboard.writeText(tx.value);
+            alert("¡Texto comercial copiado al portapapeles! 📋");
+        });
+    }
+}
+
+// ========================================================
+// 4. CONTROL DE MODALES AUXILIARES
+// ========================================================
+window.abrirModalProducto = function(id = null) {
+    idElementoEdicion = id;
+    const form = document.getElementById("form-producto");
+    form.reset();
+    
+    if(id) {
+        const p = productos.find(p => p.id === id);
+        if(p) {
+            document.getElementById("prod-nombre").value = p.nombre;
+            document.getElementById("prod-descripcion").value = p.descripcion || "";
+            document.getElementById("prod-foto").value = p.fotoUrl || "";
+            document.getElementById("prod-costo").value = p.costo;
+            document.getElementById("prod-precio").value = p.precio;
+            document.getElementById("prod-stock").value = p.stock;
+        }
+    }
+    const modal = document.getElementById("modal-producto");
+    modal.classList.replace("hidden", "flex");
+}
+
+window.abrirModalCombo = function(id = null) {
+    idElementoEdicion = id;
+    document.getElementById("form-combo").reset();
+    productosEnComboTemporal = [];
+    actualizarListaVisualCombo();
+
+    if(id) {
+        const c = combos.find(cb => cb.id === id);
+        if(c) {
+            document.getElementById("combo-nombre").value = c.nombre;
+            document.getElementById("combo-descripcion").value = c.descripcion || "";
+            document.getElementById("combo-foto").value = c.fotoUrl || "";
+            document.getElementById("combo-precio-venta").value = c.precioVenta;
+            productosEnComboTemporal = [...c.productos];
+            actualizarListaVisualCombo();
+        }
+    }
+    const modal = document.getElementById("modal-combo");
+    modal.classList.replace("hidden", "flex");
+}
+
+function abrirModalVenta() {
+    document.getElementById("form-venta").reset();
+    document.getElementById("modal-venta").classList.replace("hidden", "flex");
+}
+
+function cerrarModal(idModal) {
+    document.getElementById(idModal).classList.replace("flex", "hidden");
+    idElementoEdicion = null;
+}
+
+// ========================================================
+// 5. FILTROS Y BALANCE FINANCIERO
+// ========================================================
+function configurarSelectoresFiltro() {
+    const btnHoy = document.getElementById("filtro-hoy");
+    const btnSemana = document.getElementById("filtro-semana");
+    const btnMes = document.getElementById("filtro-mes");
+
+    const cambiarFiltroVisual = (filtro, btnActivo) => {
+        filtroFechaActual = filtro;
+        [btnHoy, btnSemana, btnMes].forEach(b => {
+            if(b) {
+                b.classList.remove("bg-purple-600", "text-white");
+                b.classList.add("bg-slate-200", "text-slate-700");
+            }
+        });
+        if(btnActivo) {
+            btnActivo.classList.remove("bg-slate-200", "text-slate-700");
+            btnActivo.classList.add("bg-purple-600", "text-white");
+        }
+        procesarYRenderizarBalance();
+    };
+
+    if(btnHoy) btnHoy.addEventListener("click", () => cambiarFiltroVisual("hoy", btnHoy));
+    if(btnSemana) btnSemana.addEventListener("click", () => cambiarFiltroVisual("semana", btnSemana));
+    if(btnMes) btnMes.addEventListener("click", () => cambiarFiltroVisual("mes", btnMes));
+}
+
+function cumpleFiltroFecha(timestamp) {
+    const ahora = new Date();
+    const fechaTransaccion = new Date(timestamp);
+
+    if (filtroFechaActual === "hoy") {
+        return ahora.toDateString() === fechaTransaccion.toDateString();
+    } else if (filtroFechaActual === "semana") {
+        return timestamp >= (Date.now() - (7 * 24 * 60 * 60 * 1000));
+    } else if (filtroFechaActual === "mes") {
+        return ahora.getMonth() === fechaTransaccion.getMonth() && ahora.getFullYear() === fechaTransaccion.getFullYear();
+    }
+    return true;
+}
+
+function procesarYRenderizarBalance() {
+    let totalVentas = 0;
+    let totalCostos = 0;
+    let totalGanancias = 0;
+    let totalDeudas = 0;
+
+    const contenedorHistorial = document.getElementById("lista-transacciones");
+    if(contenedorHistorial) contenedorHistorial.innerHTML = "";
+
+    const transaccionesFiltradas = transacciones.filter(t => cumpleFiltroFecha(t.timestamp));
+
+    transaccionesFiltradas.forEach(t => {
+        if (t.estado === "pendiente") {
+            totalDeudas += t.totalRecibido;
+        } else {
+            totalVentas += t.totalRecibido;
+            totalCostos += t.costoReal;
+            totalGanancias += (t.gananciaLimpia !== undefined) ? t.gananciaLimpia : (t.totalRecibido - t.costoReal);
+        }
+
+        if(contenedorHistorial) {
+            const div = document.createElement("div");
+            // 🌟 MODIFICACIÓN: Se añade cursor-pointer, hover y evento click para detonar el recibo detallado de la venta
+            div.className = "bg-white p-3 rounded-xl border border-slate-100 shadow-xs flex justify-between items-center text-xs gap-2 cursor-pointer hover:bg-purple-50/40 transition-all";
+            div.onclick = () => window.abrirDetalleReciboVenta(t.id);
+            div.innerHTML = `
+                <div class="flex-1 min-w-0">
+                    <p class="font-bold text-slate-800 truncate">${t.articulo}</p>
+                    <p class="text-[10px] text-slate-400">${t.fecha}</p>
+                </div>
+                <div class="text-right flex items-center gap-2" onclick="event.stopPropagation();">
+                    <div>
+                        <p class="font-black ${t.estado === 'pendiente' ? 'text-amber-600' : 'text-emerald-600'}">$${t.totalRecibido.toLocaleString()}</p>
+                        <span class="text-[9px] uppercase font-bold tracking-wider ${t.estado === 'pendiente' ? 'text-amber-700 bg-amber-50' : 'text-emerald-700 bg-emerald-50'} px-1.5 py-0.5 rounded-md">${t.estado}</span>
+                    </div>
+                    ${isAdmin ? `
+                        <button onclick="window.eliminarVentaInteligente('${t.id}', '${t.articulo}')" class="p-1 text-rose-400 hover:text-rose-600 ml-1" title="Eliminar Venta">
+                            ✕
+                        </button>
+                    ` : ''}
                 </div>
             `;
-        });
+            contenedorHistorial.appendChild(div);
+        }
+    });
 
-        const utilVenta = t.total - (t.costoTotalCalculado || 0);
+    if(document.getElementById("bal-ganancia-neta")) document.getElementById("bal-ganancia-neta").innerText = `$${totalGanancias.toLocaleString()}`;
+    if(document.getElementById("bal-total-ventas")) document.getElementById("bal-total-ventas").innerText = `+$${totalVentas.toLocaleString()}`;
+    if(document.getElementById("bal-total-costos")) document.getElementById("bal-total-costos").innerText = `-$${totalCostos.toLocaleString()}`;
+    if(document.getElementById("bal-total-deudas")) document.getElementById("bal-total-deudas").innerText = `$${totalDeudas.toLocaleString()}`;
+    
+    // Cálculos de la caja fuerte real en base a utilidades históricas acumuladas
+    const utilidadLibre = totalGanancias - retirosAcumulados;
+    const efectivoTotalCaja = capitalBaseFijo + utilidadLibre;
 
-        div.innerHTML = `
-            <div class="flex justify-between items-center border-b border-slate-50 pb-1.5">
-                <span class="text-[10px] font-black text-purple-900 bg-purple-50 px-2 py-0.5 rounded-md">${t.metodoPago.toUpperCase()}</span>
-                <span class="text-[9px] font-bold text-slate-400">${t.fecha.split("T")[0]}</span>
-            </div>
-            <div class="space-y-0.5">${productosCompradosHTML}</div>
-            <div class="flex justify-between items-center pt-1.5 border-t border-slate-50 text-xs font-black">
-                <span class="text-slate-800">Total Recibido:</span>
-                <span class="text-purple-950 text-sm">$${t.total.toLocaleString()}</span>
-            </div>
-            <div class="flex justify-between items-center text-[9px] font-bold text-slate-400 bg-slate-50/80 p-1 rounded-lg">
-                <span>Margen Ganancia: +$${utilVenta.toLocaleString()}</span>
-                <button onclick="window.eliminarVentaNube('${t.id}')" class="text-rose-500 hover:text-rose-700 font-black cursor-pointer uppercase text-[8px]">Reversar Venta</button>
+    if(document.getElementById("caja-capital-base")) document.getElementById("caja-capital-base").innerText = `$${capitalBaseFijo.toLocaleString()}`;
+    if(document.getElementById("caja-ganancia-libre")) document.getElementById("caja-ganancia-libre").innerText = `$${utilidadLibre.toLocaleString()}`;
+    if(document.getElementById("caja-efectivo-total")) document.getElementById("caja-efectivo-total").innerText = `$${efectivoTotalCaja.toLocaleString()}`;
+    
+    calcularTopProductos(transaccionesFiltradas);
+}
+
+function calcularTopProductos(listaTransacciones) {
+    const conteo = {};
+    listaTransacciones.forEach(t => { conteo[t.articulo] = (conteo[t.articulo] || 0) + 1; });
+
+    const ordenados = Object.keys(conteo).map(name => ({
+        nombre: name, ventas: conteo[name]
+    })).sort((a, b) => b.ventas - a.ventas).slice(0, 3);
+
+    const contenedorTop = document.getElementById("lista-top-productos");
+    if(!contenedorTop) return;
+    contenedorTop.innerHTML = "";
+    
+    if(ordenados.length === 0) {
+        contenedorTop.innerHTML = `<p class="text-xs text-slate-400 italic">Sin movimientos en este rango.</p>`;
+        return;
+    }
+    ordenados.forEach((item, index) => {
+        contenedorTop.innerHTML += `
+            <div class="flex justify-between items-center text-xs py-1 border-b border-slate-50">
+                <span class="text-slate-600 font-medium">${index + 1}. ${item.nombre}</span>
+                <span class="bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full text-[10px] font-black">${item.ventas} uds</span>
             </div>
         `;
-        contenedor.appendChild(div);
     });
 }
 
-// ==========================================
-// SISTEMA LOGÍSTICO Y LOGICA INTERNA DEL CARRITO
-// ==========================================
-
-window.agregarAlCarritoConVariacion = function(id, esCombo = false) {
-    if (esCombo) {
-        const combo = listaCombosGlobal.find(c => c.id === id);
-        if (!combo) return;
-
-        const itemExistente = carritoGlobal.find(it => it.id === id && it.esCombo === true);
-        if (itemExistente) {
-            itemExistente.cantidad++;
-        } else {
-            carritoGlobal.push({
-                id: combo.id,
-                nombre: combo.nombre,
-                precio: parseFloat(combo.precio),
-                costo: parseFloat(combo.costo) || 0,
-                esCombo: true,
-                variacionElegida: null,
-                cantidad: 1,
-                productosVinculados: combo.productosVinculados || []
-            });
-        }
-    } else {
-        const p = listaProductosGlobal.find(item => item.id === id);
-        if (!p) return;
-
-        let variacionSeleccionada = null;
-        const selector = document.getElementById(`select-variant-${id}`);
-        if (selector) {
-            variacionSeleccionada = selector.value;
-        }
-
-        const itemExistente = carritoGlobal.find(it => 
-            it.id === id && 
-            it.esCombo === false && 
-            it.variacionElegida === variacionSeleccionada
-        );
-
-        if (itemExistente) {
-            itemExistente.cantidad++;
-        } else {
-            carritoGlobal.push({
-                id: p.id,
-                nombre: p.nombre,
-                precio: parseFloat(p.precio),
-                costo: parseFloat(p.costo),
-                esCombo: false,
-                variacionElegida: variacionSeleccionada,
-                cantidad: 1
-            });
-        }
-    }
-
-    renderizarCarritoInterfaz();
-};
-
-function renderizarCarritoInterfaz() {
-    const contenedor = document.getElementById("carrito-items-lista");
-    const countBurbuja = document.getElementById("carrito-count-burbuja");
-    const labelTotal = document.getElementById("carrito-total-monto");
-
+// ========================================================
+// 6. ADAPTACIÓN DE RENDERIZADO DEL CATÁLOGO DE TARJETAS
+// ========================================================
+function renderizarCatalogoTarjetas() {
+    const contenedor = document.getElementById("lista-inventario");
     if (!contenedor) return;
     contenedor.innerHTML = "";
-    let totalMonto = 0;
-    let totalItemsUnidades = 0;
 
-    carritoGlobal.forEach((item, index) => {
-        totalMonto += (item.precio * item.cantidad);
-        totalItemsUnidades += item.cantidad;
-
+    productos.forEach(p => {
         const div = document.createElement("div");
-        div.className = "flex justify-between items-center bg-slate-50 p-2.5 rounded-2xl border border-slate-100 text-xs font-bold text-slate-800";
+        div.className = "bg-white p-4 rounded-2xl border border-slate-100 shadow-xs flex gap-3 relative";
         div.innerHTML = `
-            <div class="min-w-0 flex-1">
-                <p class="truncate text-slate-900">${item.nombre}</p>
-                <p class="text-[9px] text-purple-600 font-black uppercase tracking-wider">${item.esCombo ? 'Combo Especial' : (item.variacionElegida || 'Estilo Estándar')}</p>
-                <p class="text-[10px] text-slate-400 font-bold mt-0.5">$${item.precio.toLocaleString()} c/u</p>
-            </div>
-            <div class="flex items-center gap-2 shrink-0">
-                <div class="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
-                    <button type="button" onclick="window.alterarCantidadCarrito(${index}, -1)" class="px-2 py-1 text-slate-500 font-black hover:bg-slate-50 cursor-pointer text-xs">-</button>
-                    <span class="px-1.5 text-purple-950 font-black text-xs">${item.cantidad}</span>
-                    <button type="button" onclick="window.alterarCantidadCarrito(${index}, 1)" class="px-2 py-1 text-slate-500 font-black hover:bg-slate-50 cursor-pointer text-xs">+</button>
+            ${p.fotoUrl ? `<img src="${p.fotoUrl}" class="w-16 h-16 rounded-xl object-cover bg-slate-50">` : `<div class="w-16 h-16 rounded-xl bg-purple-50 flex items-center justify-center text-purple-400"><i data-lucide="image" class="w-6 h-6"></i></div>`}
+            <div class="flex-1 min-w-0">
+                <h4 class="font-bold text-slate-800 text-xs truncate">${p.nombre}</h4>
+                <p class="text-[10px] text-slate-400 line-clamp-2 mt-0.5">${p.descripcion || 'Sin descripción comercial'}</p>
+                <div class="flex justify-between items-center mt-2">
+                    <span class="text-xs font-black text-purple-900">$${p.precio.toLocaleString()}</span>
+                    <span class="text-[10px] font-bold ${p.stock <= 3 ? 'text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md' : 'text-slate-500'}">Stock: ${p.stock} u.</span>
                 </div>
-                <button type="button" onclick="window.eliminarItemCarrito(${index})" class="text-rose-500 font-bold text-xs p-1 cursor-pointer">✕</button>
+            </div>
+            <div class="absolute top-3 right-3 flex gap-1 items-center">
+                <button onclick="window.abrirPopUpMarketing('${p.id}', 'prod')" class="p-1 text-slate-400 hover:text-purple-700" title="Marketing"><i data-lucide="megaphone" class="w-3.5 h-3.5"></i></button>
+                ${isAdmin ? `
+                    <button onclick="window.abrirModalProducto('${p.id}')" class="p-1 text-purple-600 hover:text-purple-900" title="Editar"><i data-lucide="edit" class="w-3.5 h-3.5"></i></button>
+                    <button onclick="window.eliminarElementoEfectivo('${p.id}', 'productos', '${p.nombre}')" class="p-1 text-rose-500 hover:text-rose-700" title="Eliminar"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                ` : ''}
             </div>
         `;
         contenedor.appendChild(div);
     });
 
-    if (countBurbuja) countBurbuja.textContent = totalItemsUnidades;
-    if (labelTotal) labelTotal.textContent = `$${totalMonto.toLocaleString()}`;
+    combos.forEach(c => {
+        const div = document.createElement("div");
+        div.className = "bg-gradient-to-r from-purple-50/50 to-pink-50/30 p-4 rounded-2xl border border-purple-100 shadow-xs flex gap-3 relative";
+        div.innerHTML = `
+            ${c.fotoUrl ? `<img src="${c.fotoUrl}" class="w-16 h-16 rounded-xl object-cover bg-white">` : `<div class="w-16 h-16 rounded-xl bg-purple-100 flex items-center justify-center text-purple-500"><i data-lucide="package" class="w-6 h-6"></i></div>`}
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-1"><span class="bg-purple-600 text-white text-[8px] font-black uppercase px-1 rounded">Kit</span><h4 class="font-bold text-slate-800 text-xs truncate">${c.nombre}</h4></div>
+                <p class="text-[10px] text-slate-400 line-clamp-2 mt-0.5">${c.descripcion || 'Kit de temporada seleccionado'}</p>
+                <div class="flex justify-between items-center mt-2">
+                    <span class="text-xs font-black text-purple-900">$${c.precioVenta.toLocaleString()}</span>
+                    <span class="text-[9px] font-bold text-purple-600 bg-purple-100/50 px-1.5 py-0.5 rounded-md">Combo Ahorro</span>
+                </div>
+            </div>
+            <div class="absolute top-3 right-3 flex gap-1 items-center">
+                <button onclick="window.abrirPopUpMarketing('${c.id}', 'combo')" class="p-1 text-slate-400 hover:text-purple-700" title="Marketing"><i data-lucide="megaphone" class="w-3.5 h-3.5"></i></button>
+                ${isAdmin ? `
+                    <button onclick="window.abrirModalCombo('${c.id}')" class="p-1 text-purple-600 hover:text-purple-900" title="Editar Kit"><i data-lucide="edit" class="w-3.5 h-3.5"></i></button>
+                    <button onclick="window.eliminarElementoEfectivo('${c.id}', 'combos', '${c.nombre}')" class="p-1 text-rose-500 hover:text-rose-700" title="Eliminar Kit"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                ` : ''}
+            </div>
+        `;
+        contenedor.appendChild(div);
+    });
 
-    const widget = document.getElementById("carrito-widget-flotante");
-    if (widget) {
-        if (totalItemsUnidades > 0) {
-            widget.classList.replace("translate-y-32", "translate-y-0");
-            widget.classList.replace("opacity-0", "opacity-100");
+    lucide.createIcons();
+}
+
+// ========================================================
+// 7. PUBLICIDAD Y MARKETING COMERCIAL
+// ========================================================
+window.abrirPopUpMarketing = function(id, tipo) {
+    let titulo = "", desc = "", precio = 0;
+    if (tipo === 'prod') {
+        const p = productos.find(prod => prod.id === id);
+        if(p) { titulo = p.nombre; desc = p.descripcion || ""; precio = p.precio; }
+    } else {
+        const c = combos.find(com => com.id === id);
+        if(c) { titulo = c.nombre; desc = c.descripcion || ""; precio = c.precioVenta; }
+    }
+
+    document.getElementById("mkt-preview-titulo").innerText = titulo;
+    document.getElementById("mkt-preview-desc").innerText = desc;
+    document.getElementById("mkt-preview-precio").innerText = `$${precio.toLocaleString()}`;
+    document.getElementById("mkt-texto-copy").value = `✨ ¡Miren este espectacular artículo disponible en DAESMI! ✨\n\n🛍️ *${titulo}*\n📝 ${desc}\n\n💵 *Precio imperdible:* $${precio.toLocaleString()} COP\n\nEscríbenos directamente para agendar tu pedido antes de que se agote. 💖📦`;
+
+    const modalMkt = document.getElementById("modal-marketing");
+    modalMkt.classList.remove("hidden");
+    modalMkt.classList.add("flex");
+    lucide.createIcons();
+};
+
+function verificarAlertasStock() {
+    const contenedorAlertas = document.getElementById("contenedor-alertas-stock");
+    if (!contenedorAlertas) return;
+    contenedorAlertas.innerHTML = "";
+
+    if (!isAdmin) {
+        contenedorAlertas.classList.add("hidden");
+        return; 
+    }
+
+    const criticos = productos.filter(p => p.stock <= 3 && !alertasOcultasTemporalmente.includes(p.id));
+
+    if (criticos.length === 0) {
+        if (productos.some(p => p.stock <= 3)) {
+            contenedorAlertas.classList.add("hidden");
         } else {
-            widget.classList.replace("translate-y-0", "translate-y-32");
-            widget.classList.replace("opacity-100", "opacity-0");
-            window.cerrarModalCarrito();
+            contenedorAlertas.classList.remove("hidden");
+            contenedorAlertas.innerHTML = `
+                <div class="p-3 bg-emerald-50 text-emerald-800 rounded-xl text-[11px] font-medium flex items-center gap-2 w-full">
+                    <span>✅ ¡Excelente! Todo tu inventario cuenta con buen stock.</span>
+                </div>
+            `;
         }
+        return;
+    }
+
+    contenedorAlertas.classList.remove("hidden");
+    criticos.forEach(p => {
+        contenedorAlertas.innerHTML += `
+            <div id="alerta-stock-${p.id}" class="p-2.5 rounded-xl text-[11px] flex justify-between items-center w-full mb-2 ${p.stock === 0 ? 'bg-rose-50 text-rose-900 border-l-4 border-rose-500' : 'bg-amber-50 text-amber-900 border-l-4 border-amber-500'}">
+                <div class="flex items-center gap-1.5 flex-1">
+                    <span>⚠️ <strong>${p.nombre}</strong> - Quedan solo ${p.stock} unidades.</span>
+                    <button onclick="window.abrirModalProducto('${p.id}')" class="underline font-bold hover:text-purple-800 ml-1">Surtir</button>
+                </div>
+                <button onclick="window.descartarAlertaTemporal('${p.id}')" class="text-slate-400 hover:text-slate-700 font-black text-xs px-1 ml-2" title="Cerrar aviso temporalmente">✕</button>
+            </div>
+        `;
+    });
+}
+
+window.descartarAlertaTemporal = function(idProducto) {
+    alertasOcultasTemporalmente.push(idProducto);
+    verificarAlertasStock();
+};
+
+// 🌟 CORRECCIÓN: Los values de las `<option>` deben calzar exactamente con el mapeo del evento "change" (`prod_` y `combo_`)
+function actualizarSelectoresDeProductos() {
+    const selectCombo = document.getElementById("combo-select-producto");
+    const selectVenta = document.getElementById("venta-select-item");
+
+    if (selectCombo) {
+        selectCombo.innerHTML = `<option value="">-- Seleccionar Cosmético --</option>`;
+        productos.forEach(p => {
+            selectCombo.innerHTML += `<option value="${p.id}">${p.nombre}</option>`;
+        });
+    }
+
+    if (selectVenta) {
+        selectVenta.innerHTML = `<option value="">-- Seleccionar Artículo --</option>`;
+        
+        const optGroupProd = document.createElement("optgroup");
+        optGroupProd.label = "Productos Simples";
+        productos.forEach(p => {
+            optGroupProd.innerHTML += `<option value="prod_${p.id}">${p.nombre} [Stock: ${p.stock}]</option>`;
+        });
+        
+        const optGroupCombo = document.createElement("optgroup");
+        optGroupCombo.label = "Kits y Combos Armados";
+        combos.forEach(c => {
+            optGroupCombo.innerHTML += `<option value="combo_${c.id}">${c.nombre} ($${c.precioVenta.toLocaleString()})</option>`;
+        });
+
+        selectVenta.appendChild(optGroupProd);
+        selectVenta.appendChild(optGroupCombo);
     }
 }
 
-window.alterarCantidadCarrito = function(index, delta) {
-    carritoGlobal[index].cantidad += delta;
-    if (carritoGlobal[index].cantidad <= 0) {
-        carritoGlobal.splice(index, 1);
-    }
-    renderizarCarritoInterfaz();
-};
+function actualizarListaVisualCombo() {
+    const lista = document.getElementById("combo-lista-productos-temporal");
+    if(!lista) return;
+    lista.innerHTML = "";
+    
+    let costoAcumulado = 0;
+    productosEnComboTemporal.forEach((p, index) => {
+        costoAcumulado += (p.costo * p.cantidad);
+        lista.innerHTML += `
+            <li class="flex justify-between items-center text-[11px] bg-slate-50 p-2 rounded-xl border border-slate-100">
+                <span>${p.nombre} (x${p.cantidad})</span>
+                <button type="button" class="text-rose-500 hover:text-rose-700 font-bold" onclick="window.quitarItemComboTemporal(${index})">Eliminar</button>
+            </li>
+        `;
+    });
 
-window.eliminarItemCarrito = function(index) {
-    carritoGlobal.splice(index, 1);
-    renderizarCarritoInterfaz();
-};
+    const infoCosto = document.getElementById("combo-costo-calculado");
+    if(infoCosto) infoCosto.innerText = `$${costoAcumulado.toLocaleString()}`;
+}
 
-window.abrirModalCarrito = function() {
-    if (carritoGlobal.length === 0) return;
-    const m = document.getElementById("modal-carrito");
-    if (m) m.classList.replace("hidden", "flex");
-};
+window.quitarItemComboTemporal = function(index) {
+    productosEnComboTemporal.splice(index, 1);
+    actualizarListaVisualCombo();
+}
 
-window.cerrarModalCarrito = function() {
-    const m = document.getElementById("modal-carrito");
-    if (m) m.classList.replace("flex", "hidden");
-};
-
-// ==========================================
-// GUARDAR VENTAS Y ACTUALIZACIÓN LOGÍSTICA DE STOCK
-// ==========================================
-
-window.procesarDespachoVenta = async function() {
-    if (carritoGlobal.length === 0) return;
-
-    const selectMetodo = document.getElementById("carrito-metodo-pago");
-    const metodoPago = selectMetodo ? selectMetodo.value : "efectivo";
-    let totalFacturado = 0;
-    let costoTotalCalculado = 0;
-
-    for (const item of carritoGlobal) {
-        totalFacturado += (item.precio * item.cantidad);
-        costoTotalCalculado += (item.costo * item.cantidad);
-
-        if (item.esCombo) {
-            const comboReal = listaCombosGlobal.find(c => c.id === item.id);
-            if (!comboReal || parseInt(comboReal.stock) < item.cantidad) {
-                return alert(`Lo sentimos, el combo "${item.nombre}" ya no cuenta con suficiente stock disponible.`);
-            }
-        } else {
-            const prodReal = listaProductosGlobal.find(p => p.id === item.id);
-            if (!prodReal || parseInt(prodReal.stock) < item.cantidad) {
-                return alert(`Lo sentimos, el producto "${item.nombre}" ya no cuenta con suficiente stock disponible.`);
-            }
+window.eliminarElementoEfectivo = async function(id, coleccion, nombre) {
+    const confirmar = confirm(`¿Estás completamente segura de que deseas eliminar "${nombre}" de DAESMI? Esta acción no se puede deshacer.`);
+    if (confirmar) {
+        try {
+            await deleteDoc(doc(db, coleccion, id));
+            alert(`"${nombre}" ha sido eliminado correctamente.`);
+        } catch (error) {
+            console.error("Error al eliminar:", error);
+            alert("Hubo un error de permisos en Firebase al intentar eliminar el elemento.");
         }
     }
+};
+
+window.eliminarVentaInteligente = async function(idTransaccion, nombreArticulo) {
+    const confirmarBorrado = confirm(`¿Estás segura de eliminar la venta de "${nombreArticulo}"?\nEsta acción la quitará de los reportes y balances.`);
+    if (!confirmarBorrado) return;
+
+    const trans = transacciones.find(t => t.id === idTransaccion);
+    if (!trans) return alert("No se encontró la información de la transacción.");
+
+    const devolverStock = confirm(`🔄 ¿Deseas regresar este producto al INVENTARIO?\n\n[Aceptar] = Sí, la mercancía vuelve a estar disponible para la venta.\n[Cancelar] = No, la mercancía se perdió o fue un ajuste manual.`);
 
     try {
-        await addDoc(collection(db, "transacciones"), {
-            items: carritoGlobal.map(it => ({
-                id: it.id,
-                nombre: it.nombre,
-                precio: it.precio,
-                costo: it.costo,
-                cantidad: it.cantidad,
-                esCombo: it.esCombo,
-                variacionElegida: it.variacionElegida
-            })),
-            total: totalFacturado,
-            costoTotalCalculado: costoTotalCalculado,
-            metodoPago: metodoPago,
-            fecha: new Date().toISOString()
-        });
-
-        for (const item of carritoGlobal) {
-            if (item.esCombo) {
-                const comboReal = listaCombosGlobal.find(c => c.id === item.id);
-                const nuevoStockCombo = Math.max(0, parseInt(comboReal.stock) - item.cantidad);
-                await updateDoc(doc(db, "combos", item.id), { stock: nuevoStockCombo });
-
-                if (item.productosVinculados && item.productosVinculados.length > 0) {
-                    for (const pVinculado of item.productosVinculados) {
-                        const prodInterno = listaProductosGlobal.find(p => p.id === pVinculado.id);
-                        if (prodInterno) {
-                            const nuevoStockInterno = Math.max(0, parseInt(prodInterno.stock) - item.cantidad);
-                            await updateDoc(doc(db, "productos", pVinculado.id), { stock: nuevoStockInterno });
+        if (devolverStock) {
+            if (nombreArticulo.startsWith("[Kit]")) {
+                const comboNombreLimpio = nombreArticulo.replace("[Kit] ", "");
+                const comboOriginal = combos.find(c => c.nombre === comboNombreLimpio);
+                
+                if (comboOriginal && comboOriginal.productos) {
+                    for (let item of comboOriginal.productos) {
+                        const prodInventario = productos.find(p => p.id === item.id);
+                        if (prodInventario) {
+                            await updateDoc(doc(db, "productos", item.id), {
+                                stock: prodInventario.stock + item.cantidad
+                            });
                         }
                     }
                 }
             } else {
-                const prodReal = listaProductosGlobal.find(p => p.id === item.id);
-                const nuevoStock = Math.max(0, parseInt(prodReal.stock) - item.cantidad);
-                const nuevasVentasCount = (parseInt(prodReal.ventasCount) || 0) + item.cantidad;
-
-                await updateDoc(doc(db, "productos", item.id), { 
-                    stock: nuevoStock,
-                    ventasCount: nuevasVentasCount
-                });
-            }
-        }
-
-        alert("🛒 ¡Tu pedido ha sido registrado con éxito!");
-        carritoGlobal = [];
-        renderizarCarritoInterfaz();
-        window.cerrarModalCarrito();
-
-    } catch (err) {
-        console.error(err);
-        alert("Ocurrió un inconveniente al procesar tu compra externa.");
-    }
-};
-
-// ==========================================
-// CONTROL DE FORMULARIOS Y MODALES OPERATIVOS (CRUD ADMIN)
-// ==========================================
-
-window.abrirModalNuevoProducto = function() {
-    if (!isAdmin) return;
-    document.getElementById("form-producto-id").value = "";
-    document.getElementById("form-producto-titulo").textContent = "Nuevo Producto Físico";
-    document.getElementById("form-producto-nombre").value = "";
-    document.getElementById("form-producto-categoria").value = "";
-    document.getElementById("form-producto-precio").value = "";
-    document.getElementById("form-producto-costo").value = "";
-    document.getElementById("form-producto-stock").value = "";
-    document.getElementById("form-producto-foto").value = "";
-    document.getElementById("form-producto-desc").value = "";
-    document.getElementById("form-producto-variacion-titulo").value = "";
-    document.getElementById("form-producto-variacion-opciones").value = "";
-    const m = document.getElementById("modal-producto");
-    if (m) m.classList.replace("hidden", "flex");
-};
-
-window.abrirEditarProducto = function(id) {
-    if (!isAdmin) return;
-    const p = listaProductosGlobal.find(item => item.id === id);
-    if (!p) return;
-
-    document.getElementById("form-producto-id").value = p.id;
-    document.getElementById("form-producto-titulo").textContent = "Modificar Atributos";
-    document.getElementById("form-producto-nombre").value = p.nombre;
-    document.getElementById("form-producto-categoria").value = p.categoria;
-    document.getElementById("form-producto-precio").value = p.precio;
-    document.getElementById("form-producto-costo").value = p.costo || 0;
-    document.getElementById("form-producto-stock").value = p.stock;
-    document.getElementById("form-producto-foto").value = p.foto || "";
-    document.getElementById("form-producto-desc").value = p.descripcion || "";
-    
-    if (p.variacion) {
-        document.getElementById("form-producto-variacion-titulo").value = p.variacion.titulo || "";
-        document.getElementById("form-producto-variacion-opciones").value = p.variacion.opciones ? p.variacion.opciones.join(", ") : "";
-    } else {
-        document.getElementById("form-producto-variacion-titulo").value = "";
-        document.getElementById("form-producto-variacion-opciones").value = "";
-    }
-
-    const m = document.getElementById("modal-producto");
-    if (m) m.classList.replace("hidden", "flex");
-};
-
-window.cerrarModalProducto = function() {
-    const m = document.getElementById("modal-producto");
-    if (m) m.classList.replace("flex", "hidden");
-};
-
-window.guardarProductoNube = async function() {
-    if (!isAdmin) return;
-
-    const id = document.getElementById("form-producto-id").value;
-    const nombre = document.getElementById("form-producto-nombre").value.trim();
-    const categoria = document.getElementById("form-producto-categoria").value.trim().toUpperCase();
-    const precio = parseFloat(document.getElementById("form-producto-precio").value) || 0;
-    const costo = parseFloat(document.getElementById("form-producto-costo").value) || 0;
-    const stock = parseInt(document.getElementById("form-producto-stock").value) || 0;
-    const foto = document.getElementById("form-producto-foto").value.trim();
-    const descripcion = document.getElementById("form-producto-desc").value.trim();
-    
-    const vTitulo = document.getElementById("form-producto-variacion-titulo").value.trim();
-    const vOpcionesRaw = document.getElementById("form-producto-variacion-opciones").value.trim();
-
-    if (!nombre || !categoria) return alert("Completa el nombre y su respectiva categoría.");
-
-    let variacionObj = null;
-    if (vTitulo && vOpcionesRaw) {
-        variacionObj = {
-            titulo: vTitulo,
-            opciones: vOpcionesRaw.split(",").map(opt => opt.trim()).filter(opt => opt !== "")
-        };
-    }
-
-    const payload = {
-        nombre, categoria, precio, costo, stock, foto, descripcion,
-        variacion: variacionObj
-    };
-
-    try {
-        if (id) {
-            await updateDoc(doc(db, "productos", id), payload);
-        } else {
-            payload.ventasCount = 0;
-            await addDoc(collection(db, "productos"), payload);
-        }
-        window.cerrarModalProducto();
-    } catch (e) {
-        alert("Ocurrieron problemas de red al salvar el producto.");
-    }
-};
-
-window.eliminarProductoNube = async function(id) {
-    if (!isAdmin) return;
-    if (confirm("¿Estás completamente segura de remover este cosmético de la base de datos?")) {
-        await deleteDoc(doc(db, "productos", id));
-    }
-};
-
-window.abrirModalNuevoCombo = function() {
-    if (!isAdmin) return;
-    document.getElementById("form-combo-id").value = "";
-    document.getElementById("form-combo-titulo").textContent = "Crear Combo Especial";
-    document.getElementById("form-combo-nombre").value = "";
-    document.getElementById("form-combo-precio").value = "";
-    document.getElementById("form-combo-stock").value = "";
-    document.getElementById("form-combo-foto").value = "";
-    document.getElementById("form-combo-desc").value = "";
-    
-    actualizarSelectVinculacionCombos();
-    const m = document.getElementById("modal-combo");
-    if (m) m.classList.replace("hidden", "flex");
-};
-
-window.abrirEditarCombo = function(id) {
-    if (!isAdmin) return;
-    const c = listaCombosGlobal.find(item => item.id === id);
-    if (!c) return;
-
-    document.getElementById("form-combo-id").value = c.id;
-    document.getElementById("form-combo-titulo").textContent = "Ajustar Parámetros de Combo";
-    document.getElementById("form-combo-nombre").value = c.nombre;
-    document.getElementById("form-combo-precio").value = c.precio;
-    document.getElementById("form-combo-stock").value = c.stock;
-    document.getElementById("form-combo-foto").value = c.foto || "";
-    document.getElementById("form-combo-desc").value = c.descripcion || "";
-
-    actualizarSelectVinculacionCombos();
-
-    if (c.productosVinculados) {
-        const checkboxes = document.querySelectorAll(".chk-combo-prod");
-        checkboxes.forEach(chk => {
-            const vinculacionExistente = c.productosVinculados.some(v => v.id === chk.value);
-            if (vinculacionExistente) chk.checked = true;
-        });
-    }
-
-    const m = document.getElementById("modal-combo");
-    if (m) m.classList.replace("hidden", "flex");
-};
-
-window.cerrarModalCombo = function() {
-    const m = document.getElementById("modal-combo");
-    if (m) m.classList.replace("flex", "hidden");
-};
-
-window.guardarComboNube = async function() {
-    if (!isAdmin) return;
-
-    const id = document.getElementById("form-combo-id").value;
-    const nombre = document.getElementById("form-combo-nombre").value.trim();
-    const precio = parseFloat(document.getElementById("form-combo-precio").value) || 0;
-    const stock = parseInt(document.getElementById("form-combo-stock").value) || 0;
-    const foto = document.getElementById("form-combo-foto").value.trim();
-    const descripcion = document.getElementById("form-combo-desc").value.trim();
-
-    const checkboxes = document.querySelectorAll(".chk-combo-prod:checked");
-    let productosVinculados = [];
-    let costoAcumuladoCombo = 0;
-
-    checkboxes.forEach(chk => {
-        const cstIndividual = parseFloat(chk.dataset.costo) || 0;
-        costoAcumuladoCombo += cstIndividual;
-        productosVinculados.push({
-            id: chk.value,
-            nombre: chk.dataset.nombre
-        });
-    });
-
-    if (!nombre) return alert("El combo requiere obligatoriamente una descripción nominal.");
-
-    const payload = {
-        nombre, precio, stock, foto, descripcion, productosVinculados,
-        costo: costoAcumuladoCombo
-    };
-
-    try {
-        if (id) {
-            await updateDoc(doc(db, "combos", id), payload);
-        } else {
-            await addDoc(collection(db, "combos"), payload);
-        }
-        window.cerrarModalCombo();
-    } catch (e) {
-        alert("Fallas en los permisos de escritura del combo.");
-    }
-};
-
-window.eliminarComboNube = async function(id) {
-    if (!isAdmin) return;
-    if (confirm("¿Deseas desarmar e inactivar este combo promocional?")) {
-        await deleteDoc(doc(db, "combos", id));
-    }
-};
-
-window.eliminarVentaNube = async function(id) {
-    if (!isAdmin) return;
-    if (!confirm("⚠️ ¿Estás segura de reversar esta transacción? El stock devuelto se sumará de nuevo al inventario.")) return;
-
-    const ventaObj = listaTransaccionesGlobal.find(t => t.id === id);
-    if (!ventaObj) return;
-
-    try {
-        for (const item of ventaObj.items) {
-            if (item.esCombo) {
-                const comboReal = listaCombosGlobal.find(c => c.id === item.id);
-                if (comboReal) {
-                    const nuevoStockCombo = (parseInt(comboReal.stock) || 0) + item.cantidad;
-                    await updateDoc(doc(db, "combos", item.id), { stock: nuevoStockCombo });
-                }
-            } else {
-                const prodReal = listaProductosGlobal.find(p => p.id === item.id);
-                if (prodReal) {
-                    const nuevoStock = (parseInt(prodReal.stock) || 0) + item.cantidad;
-                    const nuevasVentasCount = Math.max(0, (parseInt(prodReal.ventasCount) || 0) - item.cantidad);
-                    await updateDoc(doc(db, "productos", item.id), { 
-                        stock: nuevoStock,
-                        ventasCount: nuevasVentasCount
+                const prodInventario = productos.find(p => p.nombre === nombreArticulo);
+                if (prodInventario) {
+                    await updateDoc(doc(db, "productos", prodInventario.id), {
+                        stock: prodInventario.stock + 1
                     });
+                } else {
+                    alert("⚠️ La venta se borrará, pero el producto original no se encontró en el inventario actual para sumarle el stock.");
                 }
             }
         }
 
-        await deleteDoc(doc(db, "transacciones", id));
-        alert("Venta reversada con éxito. Inventario restaurado.");
+        await deleteDoc(doc(db, "transacciones", idTransaccion));
+        alert("Transacción eliminada correctamente. Tus balances se han actualizado.");
+
+    } catch (error) {
+        console.error("Error al eliminar la transacción:", error);
+        alert("Hubo un error de permisos o conexión al intentar borrar la venta.");
+    }
+};
+
+// ========================================================
+// 🌟 8. NUEVO MÓDULO: DETALLE DE RECIBO DE VENTA (MODAL FLOTANTE JS)
+// ========================================================
+window.abrirDetalleReciboVenta = function(idTransaccion) {
+    const t = transacciones.find(trans => trans.id === idTransaccion);
+    if (!t) return;
+
+    // Crear el contenedor del modal en el body si no existe aún
+    let modalRecibo = document.getElementById("modal-recibo-dinamico");
+    if (!modalRecibo) {
+        modalRecibo = document.createElement("div");
+        modalRecibo.id = "modal-recibo-dinamico";
+        modalRecibo.className = "fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden justify-center items-center z-50 p-4";
+        document.body.appendChild(modalRecibo);
+    }
+
+    const costoBase = t.costoReal || 0;
+    const envioAsumido = t.envioAsumido || 0;
+    const gananciaReal = t.gananciaLimpia !== undefined ? t.gananciaLimpia : (t.totalRecibido - costoBase);
+
+    // Inyectamos el diseño tipo recibo de tienda sin tocar tu HTML principal
+    modalRecibo.innerHTML = `
+        <div class="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div class="text-center border-b border-dashed border-slate-200 pb-3">
+                <h4 class="font-black text-purple-900 text-sm tracking-tight">DAESMI COSMETICS</h4>
+                <p class="text-[9px] text-slate-400 uppercase tracking-widest font-bold">Comprobante de Operación</p>
+            </div>
+            
+            <div class="space-y-2 text-xs">
+                <div class="flex justify-between gap-4"><span class="text-slate-400 font-medium">Artículo:</span><span class="font-bold text-slate-800 text-right max-w-[200px] truncate">${t.articulo}</span></div>
+                <div class="flex justify-between"><span class="text-slate-400 font-medium">Fecha y Hora:</span><span class="text-slate-700 font-medium">${t.fecha}</span></div>
+                <div class="flex justify-between"><span class="text-slate-400 font-medium">Estado Pago:</span><span class="px-1.5 py-0.2 bg-purple-50 text-purple-700 rounded-sm font-bold uppercase text-[9px]">${t.estado}</span></div>
+                
+                <hr class="border-slate-100 my-2">
+                
+                <div class="flex justify-between text-slate-700"><span>Cobrado al Cliente:</span><span class="font-bold text-emerald-600">+$${t.totalRecibido.toLocaleString()}</span></div>
+                <div class="flex justify-between text-slate-400"><span>Costo de Mercancía:</span><span class="font-medium">-$${costoBase.toLocaleString()}</span></div>
+                <div class="flex justify-between text-slate-400"><span>Envío Subsidiado:</span><span class="font-medium ${envioAsumido > 0 ? 'text-rose-500 font-bold' : ''}">-$${envioAsumido.toLocaleString()}</span></div>
+                
+                <div class="bg-purple-50/70 p-2.5 rounded-xl flex justify-between items-center mt-3 border border-purple-100/50">
+                    <span class="font-bold text-purple-950 text-[11px] uppercase tracking-wider">Utilidad Real:</span>
+                    <span class="font-black text-purple-900 text-sm">$${gananciaReal.toLocaleString()}</span>
+                </div>
+            </div>
+
+            <button onclick="document.getElementById('modal-recibo-dinamico').classList.replace('flex', 'hidden')" class="w-full bg-slate-900 text-white p-2.5 rounded-xl font-bold text-xs mt-2 transition-colors cursor-pointer hover:bg-slate-800">
+                Cerrar Comprobante
+            </button>
+        </div>
+    `;
+
+    modalRecibo.classList.replace("hidden", "flex");
+};
+
+// ========================================================
+// 🪙 MÓDULO ADMINISTRATIVO DE LA CAJA FUERTE (ACTUALIZACIÓN)
+// ========================================================
+
+// 1. Modificar el capital base desde el atajo directo en la tarjeta de caja
+window.ajustarCapitalBaseManual = async function() {
+    if (!isAdmin) return alert("Acceso denegado.");
+    const nuevoCapital = prompt("Ingresa el nuevo Capital Base (Colchón de dinero en efectivo):", capitalBaseFijo);
+    if (nuevoCapital === null) return; // Cancelado
+    
+    const valorNumerico = parseFloat(nuevoCapital) || 0;
+    try {
+        await updateDoc(doc(db, "configuracion", "caja_daesmi"), { capitalBase: valorNumerico });
+        alert(`Capital Base actualizado a: $${valorNumerico.toLocaleString()} COP`);
     } catch (e) {
-        alert("Error al intentar revertir la transacción.");
+        alert("Error de permisos al actualizar base.");
     }
 };
 
-// ==========================================
-// CONTROLES DE SEGURIDAD, ACCESO Y FINANZAS
-// ==========================================
+// 2. Modificar el capital base desde la nueva sección de ajustes
+window.actualizarCapitalBaseDesdeAjustes = async function() {
+    if (!isAdmin) return alert("Acceso denegado.");
+    const input = document.getElementById("input-ajuste-capital");
+    if (!input || !input.value.trim()) return alert("Por favor ingresa un monto válido.");
 
-const btnEstadoSesion = document.getElementById("btn-estado-sesion");
-if (btnEstadoSesion) {
-    btnEstadoSesion.addEventListener("click", () => {
-        if (isAdmin) {
-            if (confirm("¿Cerrar sesión administrativa actual?")) {
-                signOut(auth);
-            }
-        } else {
-            document.getElementById("login-email").value = "";
-            document.getElementById("login-password").value = "";
-            const m = document.getElementById("modal-login");
-            if (m) m.classList.replace("hidden", "flex");
-        }
-    });
-}
-
-window.cerrarModalLogin = function() {
-    const m = document.getElementById("modal-login");
-    if (m) m.classList.replace("flex", "hidden");
-};
-
-window.ejecutarLoginAdmin = async function() {
-    const email = document.getElementById("login-email").value.trim();
-    const pass = document.getElementById("login-password").value.trim();
-
-    try {
-        await signInWithEmailAndPassword(auth, email, pass);
-        window.cerrarModalLogin();
-    } catch (err) {
-        alert("Credenciales de acceso inválidas.");
-    }
-};
-
-window.guardarCapitalBaseCaja = async function() {
-    if (!isAdmin) return;
-    const input = document.getElementById("ajuste-capital-base");
     const valor = parseFloat(input.value) || 0;
-
-    if (valor <= 0) return alert("Ingresa un valor operacional válido.");
-
     try {
-        await setDoc(doc(db, "configuracion", "caja_daesmi"), { capitalBase: valor }, { merge: true });
+        await updateDoc(doc(db, "configuracion", "caja_daesmi"), { capitalBase: valor });
         alert(`¡Éxito! El Capital Base operativo se fijó en $${valor.toLocaleString()} COP.`);
         input.value = "";
     } catch (e) {
@@ -1040,18 +865,18 @@ window.guardarCapitalBaseCaja = async function() {
     }
 };
 
+// 3. Control de ventanas emergentes para Retiro de Utilidades
 window.abrirModalRetiro = function() {
     if (!isAdmin) return alert("Solo el administrador puede retirar dinero de las utilidades.");
     document.getElementById("retiro-monto").value = "";
-    const m = document.getElementById("modal-retiro-ganancias");
-    if (m) m.classList.replace("hidden", "flex");
+    document.getElementById("modal-retiro-ganancias").classList.replace("hidden", "flex");
 };
 
 window.cerrarModalRetiro = function() {
-    const m = document.getElementById("modal-retiro-ganancias");
-    if (m) m.classList.replace("flex", "hidden");
+    document.getElementById("modal-retiro-ganancias").classList.replace("flex", "hidden");
 };
 
+// 4. Procesar y guardar el retiro acumulado en la nube
 window.ejecutarRetiroGanancias = async function() {
     if (!isAdmin) return;
     const montoInput = document.getElementById("retiro-monto");
@@ -1059,71 +884,15 @@ window.ejecutarRetiroGanancias = async function() {
 
     if (montoARetirar <= 0) return alert("Ingresa un monto válido mayor a cero.");
 
+    // Sumamos el nuevo retiro al acumulado histórico en Firebase
     const nuevoTotalRetiros = retirosAcumulados + montoARetirar;
 
     try {
-        await setDoc(doc(db, "configuracion", "caja_daesmi"), { retiros: nuevoTotalRetiros }, { merge: true });
+        await updateDoc(doc(db, "configuracion", "caja_daesmi"), { retiros: nuevoTotalRetiros });
         alert(`Retiro exitoso de $${montoARetirar.toLocaleString()} COP registrado.\nTu Efectivo Total en Caja se ha recalculado.`);
         window.cerrarModalRetiro();
-    } catch (e) {
-        alert("Error de red al procesar el débito en la nube.");
+    } catch (error) {
+        console.error(error);
+        alert("Error al intentar asentar el retiro en la base de datos.");
     }
 };
-
-// ==========================================
-// HERRAMIENTA AUTOMATIZADA DE MARKETING DIGITAL
-// ==========================================
-
-window.detonarMarketingProducto = function(id) {
-    if (!isAdmin) return;
-    const p = listaProductosGlobal.find(item => item.id === id);
-    if (!p) return;
-
-    const previewT = document.getElementById("mkt-preview-titulo");
-    const previewD = document.getElementById("mkt-preview-desc");
-    const previewP = document.getElementById("mkt-preview-precio");
-    const txtCopy = document.getElementById("mkt-texto-copy");
-
-    if (previewT) previewT.textContent = p.nombre;
-    if (previewD) previewD.textContent = p.descripcion || "¡Disponible en stock!";
-    if (previewP) previewP.textContent = `$${p.precio.toLocaleString()} COP`;
-
-    let copyRecomendado = `✨ *${p.nombre.toUpperCase()}* ✨\n\n`;
-    if (p.descripcion) copyRecomendado += `${p.descripcion}\n\n`;
-    
-    if (p.variacion) {
-        copyRecomendado += `🎨 Disponible en hermosos estilos/tonos: _${p.variacion.opciones.join(", ")}_\n\n`;
-    }
-    
-    copyRecomendado += `💰 *Precio:* $${p.precio.toLocaleString()} COP\n`;
-    copyRecomendado += `📍 Entregas seguras en Medellín. ¡Pide el tuyo antes de que se agote! 🛍️✨`;
-
-    if (txtCopy) txtCopy.value = copyRecomendado;
-    
-    const m = document.getElementById("modal-marketing");
-    if (m) m.classList.replace("hidden", "flex");
-};
-
-// Validación segura para el botón de copiado
-const btnCopiarCopy = document.getElementById("btn-copiar-copy");
-if (btnCopiarCopy) {
-    btnCopiarCopy.addEventListener("click", () => {
-        const cajaTexto = document.getElementById("mkt-texto-copy");
-        if (!cajaTexto) return;
-        
-        cajaTexto.select();
-        cajaTexto.setSelectionRange(0, 99999);
-
-        navigator.clipboard.writeText(cajaTexto.value)
-            .then(() => alert("📋 ¡Texto publicitario copiado al portapapeles! Listo para pegar en WhatsApp o Instagram."))
-            .catch(() => alert("No se otorgaron permisos de portapapeles en el navegador. Copia el recuadro manualmente."));
-    });
-}
-
-// ==========================================
-// INICIALIZACIÓN DE CARGA PREVIA DEL CORE
-// ==========================================
-
-iniciarEscuchasPublicas();
-monitorearSesion();
-renderizarMenuCategorias();
