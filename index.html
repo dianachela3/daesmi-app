@@ -67,36 +67,37 @@
                 </div>
             </div>
 
-            <div class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 text-white p-4 rounded-2xl shadow-md my-2">
-                <div class="flex justify-between items-center border-b border-slate-700/50 pb-2 mb-2.5">
+            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-md my-2">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-2 mb-2.5">
                     <div class="flex items-center gap-1.5">
                         <span class="text-sm">🪙</span>
-                        <h3 class="text-[10px] font-black uppercase tracking-wider text-slate-300">Caja Fuerte DAESMI</h3>
+                        <h3 class="text-[10px] font-black uppercase tracking-wider text-slate-800">Caja Fuerte DAESMI</h3>
                     </div>
-                    <button type="button" id="btn-trigger-modal-retiro" class="bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-extrabold px-2.5 py-1 rounded-lg shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer">
+                    <button type="button" onclick="window.abrirModalRetiro()" class="bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-extrabold px-2.5 py-1 rounded-lg shadow-sm transition-all cursor-pointer whitespace-nowrap">
                         Retirar Utilidad
                     </button>
                 </div>
-
+            
                 <div class="grid grid-cols-3 gap-2 text-center mt-3">
-                    <div class="bg-slate-100 p-2.5 rounded-xl border border-slate-200/60 flex flex-col justify-between shadow-xs">
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex flex-col justify-between shadow-xs">
                         <p class="text-[9px] uppercase font-black tracking-wider text-slate-500">Capital Base</p>
                         <span id="caja-capital-base" class="text-sm font-black text-purple-900 block my-1">$0</span>
                         <button type="button" onclick="window.ajustarCapitalBaseManual()" class="block w-full text-[8px] font-extrabold text-purple-700 underline hover:text-purple-900 transition-colors cursor-pointer">
                             Definir
                         </button>
                     </div>
-                
-                    <div class="bg-emerald-50 p-2.5 rounded-xl border border-emerald-100 flex flex-col justify-center shadow-xs">
+            
+                    <div class="bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-100 flex flex-col justify-center shadow-xs">
                         <p class="text-[9px] uppercase font-black tracking-wider text-emerald-800">Utilidad Libre</p>
                         <span id="caja-ganancia-libre" class="text-sm font-black text-emerald-600 block mt-1">$0</span>
                     </div>
-                
-                    <div class="bg-purple-50 p-2.5 rounded-xl border border-purple-100 flex flex-col justify-center shadow-xs">
+            
+                    <div class="bg-purple-50/60 p-2.5 rounded-xl border border-purple-100 flex flex-col justify-center shadow-xs">
                         <p class="text-[9px] uppercase font-black tracking-wider text-purple-800">Efectivo Total</p>
                         <span id="caja-efectivo-total" class="text-sm font-black text-purple-950 block mt-1">$0</span>
                     </div>
                 </div>
+            </div>
 
             <div class="flex gap-2 pt-1">
                 <button id="filtro-hoy" class="flex-1 text-center py-2 bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer">Hoy</button>
