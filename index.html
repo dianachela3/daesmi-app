@@ -4,34 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DAESMI · Catálogo y Gestión</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased font-sans pb-24">
 
-    <!-- CONTENEDOR PRINCIPAL -->
     <main class="max-w-md mx-auto min-h-screen flex flex-col p-4 bg-slate-50">
         
-        <!-- HEADER GENERAL -->
         <header class="flex justify-between items-center mb-6">
             <div>
                 <h1 class="text-xl font-black text-purple-900 tracking-tight">DAESMI</h1>
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cosmetics & Accessories</p>
             </div>
-            <!-- Botón dinámico de acceso / perfil -->
             <button id="btn-estado-sesion" class="bg-purple-100 p-2 rounded-xl text-purple-800 shadow-xs cursor-pointer flex items-center gap-1.5 text-xs font-bold">
                 <i data-lucide="user" class="w-4 h-4"></i> <span id="txt-estado-sesion">Login</span>
             </button>
         </header>
 
-        <!-- ========================================== -->
-        <!-- VISTA EXCLUSIVA: LOGIN -->
-        <!-- ========================================== -->
         <section id="view-login" class="hidden my-auto py-12 space-y-4">
             <div class="text-center">
-                <h3 class="text-base font-black text-purple-950">Panel Administrativo</h3>
+                <h3 class="text-base font-black text-purple-950">Panel Administrative</h3>
                 <p class="text-xs text-slate-400">Ingresa tus credenciales seguras para gestionar caja y stocks</p>
             </div>
             <form id="form-login" class="bg-white p-5 rounded-2xl border border-slate-100 shadow-md space-y-3">
@@ -48,9 +41,6 @@
             </form>
         </section>
 
-        <!-- ========================================== -->
-        <!-- VISTA PRIVADA: BALANCE (SOLO ADMIN) -->
-        <!-- ========================================== -->
         <section id="view-balance" class="hidden space-y-4">
             <div class="bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 text-white p-6 rounded-2xl shadow-xl border border-purple-950 relative overflow-hidden">
                 <div class="absolute -right-6 -bottom-6 text-purple-700/20 pointer-events-none">
@@ -61,7 +51,6 @@
                 <p class="text-[10px] text-purple-300">Calculado sobre productos cobrados</p>
             </div>
 
-            <!-- Grilla de Tarjetas Básicas con IDs Originales -->
             <div class="grid grid-cols-3 gap-2">
                 <div class="bg-white p-3 rounded-xl border border-slate-100 shadow-xs">
                     <p class="text-[10px] font-bold text-slate-400 uppercase">Ingresos</p>
@@ -83,7 +72,7 @@
                         <span class="text-sm">🪙</span>
                         <h3 class="text-[10px] font-black uppercase tracking-wider text-slate-300">Caja Fuerte DAESMI</h3>
                     </div>
-                    <button type="button" onclick="window.abrirModalRetiro()" class="bg-purple-600 hover:bg-purple-700 text-white text-[9px] font-bold px-2 py-0.5 rounded-lg transition-all shadow-xs cursor-pointer">
+                    <button type="button" id="btn-trigger-modal-retiro" class="bg-purple-600 hover:bg-purple-700 text-white text-[9px] font-bold px-2 py-0.5 rounded-lg transition-all shadow-xs cursor-pointer">
                         Retirar Utilidad
                     </button>
                 </div>
@@ -92,14 +81,12 @@
                     <div class="bg-slate-800/60 p-2 rounded-xl border border-slate-700/40">
                         <p class="text-[8px] uppercase font-bold text-slate-400">Capital Base</p>
                         <span id="caja-capital-base" class="text-xs font-black text-purple-400">$0</span>
-                        <button type="button" onclick="window.ajustarCapitalBaseManual()" class="block w-full text-[7px] text-slate-500 underline hover:text-slate-300 mt-0.5 cursor-pointer">Definir</button>
+                        <button type="button" id="btn-trigger-capital-manual" class="block w-full text-[7px] text-slate-500 underline hover:text-slate-300 mt-0.5 cursor-pointer">Definir</button>
                     </div>
-
                     <div class="bg-slate-800/60 p-2 rounded-xl border border-slate-700/40">
                         <p class="text-[8px] uppercase font-bold text-slate-400">Utilidad Libre</p>
                         <span id="caja-ganancia-libre" class="text-xs font-black text-emerald-400">$0</span>
                     </div>
-
                     <div class="bg-purple-950/40 p-2 rounded-xl border border-purple-500/20">
                         <p class="text-[8px] uppercase font-bold text-purple-300">Efectivo Total</p>
                         <span id="caja-efectivo-total" class="text-xs font-black text-amber-400">$0</span>
@@ -107,24 +94,19 @@
                 </div>
             </div>
 
-            <!-- NUEVO PUNTO 1: BOTONES DE FILTRO DE FECHAS -->
             <div class="flex gap-2 pt-1">
                 <button id="filtro-hoy" class="flex-1 text-center py-2 bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer">Hoy</button>
                 <button id="filtro-semana" class="flex-1 text-center py-2 bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer">7 Días</button>
                 <button id="filtro-mes" class="flex-1 text-center py-2 bg-purple-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer">Este Mes</button>
             </div>
 
-            <!-- NUEVO PUNTO 2: TARJETA DEL TOP 3 DE MÁS VENDIDOS -->
             <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs space-y-2">
                 <h3 class="text-[10px] font-bold uppercase text-slate-400 tracking-wider flex items-center gap-1">
                     <i data-lucide="flame" class="w-3.5 h-3.5 text-amber-500"></i> Productos Más Vendidos
                 </h3>
-                <div id="lista-top-productos" class="space-y-1.5 pt-1">
-                    <!-- Se llena solo mediante JavaScript -->
-                </div>
+                <div id="lista-top-productos" class="space-y-1.5 pt-1"></div>
             </div>
 
-            <!-- Botones de Acción Rápidos -->
             <div class="grid grid-cols-2 gap-3 pt-1">
                 <button id="btn-dash-venta" class="bg-purple-800 hover:bg-purple-900 text-white p-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer">
                     <i data-lucide="shopping-bag" class="w-4 h-4"></i> Registrar Venta
@@ -134,16 +116,12 @@
                 </button>
             </div>
 
-            <!-- Historial de Transacciones -->
             <div class="pt-2">
                 <h3 class="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Historial de Movimientos</h3>
                 <div id="lista-transacciones" class="space-y-2"></div>
             </div>
         </section>
 
-        <!-- ========================================== -->
-        <!-- VISTA MIXTA: INVENTARIO / CATÁLOGO PÚBLICO -->
-        <!-- ========================================== -->
         <section id="view-inventario" class="space-y-4">
             <div class="flex justify-between items-center">
                 <div>
@@ -152,12 +130,8 @@
                 </div>
             </div>
 
-            <!-- NUEVO PUNTO 3: CONTENEDOR DE ALERTAS DE STOCK BAJO -->
-            <div id="contenedor-alertas-stock" class="space-y-2">
-                <!-- Mensajes en rojo/amarillo inyectados por JS automáticamente -->
-            </div>
+            <div id="contenedor-alertas-stock" class="space-y-2"></div>
 
-            <!-- Botonera de Creación (Solo visible para Admin) -->
             <div id="wrapper-acciones-inventario" class="hidden grid grid-cols-2 gap-2">
                 <button id="btn-nuevo-producto" class="bg-slate-900 text-white p-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer">
                     <i data-lucide="plus" class="w-4 h-4"></i> Producto Simple
@@ -167,32 +141,27 @@
                 </button>
             </div>
 
-            <!-- Lista Unificada de Inventario / Catálogo -->
             <div id="lista-inventario" class="space-y-3 pt-2"></div>
         </section>
 
-        <!-- ========================================== -->
-        <!-- VISTA PRIVADA: AJUSTES (SOLO ADMIN) -->
-        <!-- ========================================== -->
         <section id="view-ajustes" class="hidden space-y-4">
             <div>
                 <h3 class="text-base font-black text-slate-800">Ajustes Generales</h3>
                 <p class="text-[11px] text-slate-400">Control de la plataforma en la nube</p>
             </div>
 
-            <!-- Panel de Auditoría de Caja Fuerte (Nuevo Bloque) -->
             <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs space-y-3">
                 <h4 class="text-xs font-black uppercase text-purple-950 tracking-wider flex items-center gap-1">
                     <i data-lucide="shield-check" class="w-3.5 h-3.5 text-purple-700"></i> Auditoría Financiera
                 </h4>
-                <p class="text-[11px] text-slate-400">Define el dinero inicial de tu colchón de caja. Al registrar inversiones grandes o inyecciones de dinero, actualiza este campo.</p>
+                <p class="text-[11px] text-slate-400">Define el dinero inicial de tu colchón de caja. Al registrar inversiones grandes, actualiza este campo.</p>
                 
                 <div class="space-y-2 pt-1">
                     <div>
                         <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Modificar Capital Base ($)</label>
                         <div class="flex gap-2">
-                            <input type="number" id="input-ajuste-capital" placeholder="Ej: 200000" class="w-full bg-slate-50 border p-2 rounded-xl text-xs font-bold focus:outline-hidden">
-                            <button type="button" onclick="window.actualizarCapitalBaseDesdeAjustes()" class="bg-purple-800 hover:bg-purple-900 text-white px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer">
+                            <input type="number" id="input-ajuste-capital" placeholder="Ej: 200000" class="w-full bg-slate-50 border p-2 rounded-xl text-xs font-bold focus:outline-none">
+                            <button type="button" id="btn-guardar-capital-ajustes" class="bg-purple-800 hover:bg-purple-900 text-white px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer">
                                 Guardar
                             </button>
                         </div>
@@ -200,7 +169,6 @@
                 </div>
             </div>
 
-            <!-- Botón de Cierre de Sesión -->
             <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-xs space-y-3 text-center">
                 <p class="text-xs text-slate-500">Sesión activa en servidores seguros de Firebase.</p>
                 <button id="btn-cerrar-sesion" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 p-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer">
@@ -208,10 +176,8 @@
                 </button>
             </div>
         </section>
-
     </main>
 
-    <!-- NAVEGACIÓN INFERIOR DINÁMICA -->
     <nav class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 p-3 shadow-lg z-40">
         <div class="max-w-md mx-auto flex justify-around items-center">
             <button id="nav-balance" class="hidden flex flex-col items-center gap-1 text-slate-400 font-medium transition-colors cursor-pointer">
@@ -229,182 +195,24 @@
         </div>
     </nav>
 
-    <!-- MODAL: PRODUCTO SIMPLE -->
-    <div id="modal-producto" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden justify-center items-end z-50 p-4">
-        <div class="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
-            <div class="flex justify-between items-center">
-                <h4 class="font-black text-slate-800 text-sm">Añadir Nuevo Producto</h4>
-                <button id="btn-cerrar-modal-prod" class="text-slate-400 font-bold text-xs p-1 cursor-pointer">✕</button>
-            </div>
-            <form id="form-producto" class="space-y-3">
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nombre Comercial</label>
-                    <input type="text" id="prod-nombre" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none focus:border-purple-600">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Descripción Comercial</label>
-                    <textarea id="prod-descripcion" rows="2" class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none focus:border-purple-600 resize-none"></textarea>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">URL de la Imagen (Opcional)</label>
-                    <input type="url" id="prod-foto" class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none" placeholder="https://ejemplo.com/foto.jpg">
-                </div>
-                <div class="grid grid-cols-3 gap-2">
-                    <div>
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Costo ($)</label>
-                        <input type="number" step="0.01" id="prod-costo" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">P. Venta ($)</label>
-                        <input type="number" step="0.01" id="prod-precio" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Stock</label>
-                        <input type="number" id="prod-stock" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none">
-                    </div>
-                </div>
-                <button type="submit" class="w-full bg-purple-800 text-white p-3 rounded-xl font-bold text-xs mt-2 cursor-pointer">Guardar Artículo</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- MODAL: COMBOS / KITS -->
-    <div id="modal-combo" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden justify-center items-end z-50 p-4">
-        <div class="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
-            <div class="flex justify-between items-center">
-                <h4 class="font-black text-slate-800 text-sm">Armar Nuevo Combo</h4>
-                <button id="btn-cerrar-modal-combo" class="text-slate-400 font-bold text-xs p-1 cursor-pointer">✕</button>
-            </div>
-            <form id="form-combo" class="space-y-3">
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nombre del Combo / Kit</label>
-                    <input type="text" id="combo-nombre" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Descripción del Combo</label>
-                    <textarea id="combo-descripcion" rows="2" class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none resize-none"></textarea>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">URL Imagen Combo (Opcional)</label>
-                    <input type="url" id="combo-foto" class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none" placeholder="https://...jpg">
-                </div>
-                <div class="bg-slate-50 p-3 rounded-xl border border-dashed space-y-2">
-                    <label class="block text-[10px] font-bold text-slate-500 uppercase">Añadir Productos</label>
-                    <div class="flex gap-2">
-                        <select id="combo-select-producto" class="w-full bg-white border p-2 rounded-xl text-xs"></select>
-                        <button type="button" id="btn-agregar-item-combo" class="bg-slate-900 text-white px-3 rounded-xl text-xs font-bold cursor-pointer">+</button>
-                    </div>
-                    <!-- Lista modular enlazada con JS -->
-                    <ul id="combo-lista-productos-temporal" class="space-y-1 pt-1 max-h-32 overflow-y-auto"></ul>
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Costo Base</label>
-                        <div id="combo-costo-calculado" class="w-full bg-slate-100 p-2.5 rounded-xl text-xs font-bold text-slate-600">$0.00</div>
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Precio Final ($)</label>
-                        <input type="number" step="0.01" id="combo-precio-venta" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs font-bold">
-                    </div>
-                </div>
-                <button type="submit" class="w-full bg-purple-800 text-white p-3 rounded-xl font-bold text-xs cursor-pointer">Guardar Combo Kit</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- MODAL: REGISTRAR VENTA -->
-    <div id="modal-venta" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden justify-center items-end z-50 p-4">
-        <div class="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl space-y-4">
-            <div class="flex justify-between items-center">
-                <h4 class="font-black text-slate-800 text-sm">Registrar Nueva Venta</h4>
-                <button id="btn-cerrar-modal-venta" class="text-slate-400 font-bold text-xs p-1 cursor-pointer">✕</button>
-            </div>
-            <form id="form-venta" class="space-y-3">
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Seleccionar Artículo</label>
-                    <select id="venta-select-item" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs"></select>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Estado</label>
-                    <select id="venta-estado-pago" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs font-medium">
-                        <option value="pagado">🟢 Pagado Completo (Caja)</option>
-                        <option value="pendiente">🟡 Pendiente (Fiado)</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Precio Cobrado ($)</label>
-                    <input type="number" step="0.01" id="venta-precio-final" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs font-bold">
-                </div>
-                <div class="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">¿Asumiste parte del envío?</label>
-                    <div class="flex gap-4 mb-2">
-                        <label class="inline-flex items-center text-xs">
-                            <input type="radio" name="asumio-envio" value="no" checked class="text-purple-600 focus:ring-purple-500" onchange="document.getElementById('contenedor-envio-asumido').classList.add('hidden')">
-                            <span class="ml-1.5 text-slate-600">No, lo pagó el cliente completo</span>
-                        </label>
-                        <label class="inline-flex items-center text-xs">
-                            <input type="radio" name="asumio-envio" value="si" class="text-purple-600 focus:ring-purple-500" onchange="document.getElementById('contenedor-envio-asumido').classList.remove('hidden')">
-                            <span class="ml-1.5 text-slate-600 font-medium text-purple-700">Sí, asumí una parte</span>
-                        </label>
-                    </div>
-                    
-                    <div id="contenedor-envio-asumido" class="hidden mt-2">
-                        <label for="venta-envio-asumido" class="block text-[10px] font-bold text-purple-600 uppercase mb-1">¿Cuánto dinero pusiste de tu bolsillo?</label>
-                        <div class="relative">
-                            <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 text-xs">$</span>
-                            <input type="number" id="venta-envio-asumido" value="0" min="0" placeholder="Ej: 2000" class="w-full pl-6 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs focus:outline-hidden focus:ring-1 focus:ring-purple-500 focus:border-purple-500">
-                        </div>
-                        <p class="text-[9px] text-slate-400 mt-1">Este valor se restará automáticamente del reporte de tus ganancias netas.</p>
-                    </div>
-                </div>
-                <button type="submit" class="w-full bg-purple-800 text-white p-3 rounded-xl font-bold text-xs cursor-pointer">Completar Operación</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- POP-UP MARKETING -->
-    <div id="modal-marketing" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden justify-center items-center z-50 p-4">
-        <div class="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center">
-                <h4 class="font-black text-slate-800 text-sm">Herramienta de Catálogo</h4>
-                <button onclick="document.getElementById('modal-marketing').classList.remove('flex'); document.getElementById('modal-marketing').classList.add('hidden');" class="text-slate-400 font-bold text-xs p-1 cursor-pointer">✕</button>
-            </div>
-            <div id="mkt-tarjeta-visual" class="w-full rounded-2xl bg-gradient-to-tr from-fuchsia-100 via-purple-50 to-pink-100 p-6 border border-purple-200/60 text-center flex flex-col justify-center items-center space-y-3 relative overflow-hidden min-h-[220px]">
-                <div class="absolute top-2 left-3 text-[8px] font-bold tracking-widest text-purple-400 uppercase">DAESMI</div>
-                <h3 id="mkt-preview-titulo" class="font-black text-xl text-purple-950 tracking-tight">Nombre</h3>
-                <p id="mkt-preview-desc" class="text-xs text-purple-800/80 px-4 line-clamp-3">Descripción</p>
-                <div class="bg-purple-900 text-white text-sm font-black px-4 py-1.5 rounded-full shadow-md"><span id="mkt-preview-precio">$0.00</span></div>
-            </div>
-            <div class="space-y-1.5">
-                <textarea id="mkt-texto-copy" rows="4" class="w-full p-3 bg-slate-50 border rounded-xl text-xs font-mono resize-none"></textarea>
-                <button id="btn-copiar-copy" class="w-full bg-slate-900 text-white p-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 cursor-pointer">
-                    <i data-lucide="clipboard" class="w-3.5 h-3.5"></i> Copiar Texto Comercial
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal-retiro-ganancias" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+    <div id="modal-retiro-ganancias" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden justify-center items-center z-50 p-4">
         <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
             <div class="flex justify-between items-center">
                 <h4 class="font-black text-slate-800 text-sm">💸 Registrar Retiro de Utilidades</h4>
-                <button onclick="window.cerrarModalRetiro()" class="text-slate-400 font-bold text-xs p-1 cursor-pointer">✕</button>
+                <button id="btn-cerrar-modal-retiro" class="text-slate-400 font-bold text-xs p-1 cursor-pointer">✕</button>
             </div>
             <p class="text-[11px] text-slate-400">Usa esta opción si vas a sacar dinero de las ganancias del negocio para uso tuyo personal.</p>
-            
             <div>
                 <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Monto a retirar ($)</label>
                 <input type="number" id="retiro-monto" placeholder="Ej: 20000" class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none focus:border-purple-600 font-bold">
             </div>
-
             <div class="flex gap-2 justify-end pt-2">
-                <button type="button" onclick="window.cerrarModalRetiro()" class="px-3 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold cursor-pointer">Cancelar</button>
-                <button type="button" onclick="window.ejecutarRetiroGanancias()" class="px-3 py-2 bg-purple-800 text-white rounded-xl text-xs font-bold hover:bg-purple-900 cursor-pointer">Confirmar Retiro</button>
+                <button type="button" id="btn-cancelar-retiro" class="px-3 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold cursor-pointer">Cancelar</button>
+                <button type="button" id="btn-confirmar-retiro" class="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold cursor-pointer">Confirmar Retiro</button>
             </div>
         </div>
     </div>
 
-    <!-- INCLUSIÓN MODULAR DE FIREBASE -->
     <script type="module" src="app.js"></script>
 </body>
 </html>
