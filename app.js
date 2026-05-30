@@ -59,6 +59,9 @@ function inicializarAutenticacion() {
             document.getElementById("nav-ajustes")?.classList.remove("hidden");
             document.getElementById("wrapper-acciones-inventario")?.classList.remove("hidden");
             
+            // 🔥 CAMBIO AQUÍ: Activamos las escuchas privadas de transacciones y caja ya que hay sesión
+            activarEscuchasFinancierasPrivadas();
+
             if (!document.getElementById("view-login")?.classList.contains("hidden")) {
                 window.cambiarVistaEfectiva("view-balance", document.getElementById("nav-balance"));
             }
@@ -68,6 +71,13 @@ function inicializarAutenticacion() {
             document.getElementById("nav-balance")?.classList.add("hidden");
             document.getElementById("nav-ajustes")?.classList.add("hidden");
             document.getElementById("wrapper-acciones-inventario")?.classList.add("hidden");
+            
+            // 🔥 CAMBIO AQUÍ: Apagamos las escuchas privadas para que no generen errores de permisos
+            desactivarEscuchasFinancierasPrivadas();
+
+            // Limpiamos los arreglos en memoria de la interfaz de administración
+            transacciones = [];
+            
             window.cambiarVistaEfectiva("view-inventario", document.getElementById("nav-inventario"));
         }
         renderizarCatalogoTarjetas();
@@ -113,10 +123,15 @@ function inicializarAutenticacion() {
     }
 }
 
+// Variables globales para controlar la cancelación de las escuchas privadas
+let desesqucharTransacciones = null;
+let desescucharConfiguracion = null;
+
 // ========================================================
 // 2. ESCUCHA DE DATOS EN TIEMPO REAL (FIREBASE)
 // ========================================================
 function escucharDatosFirebase() {
+    // ESCUCHAS PÚBLICAS: Funcionan siempre, con o sin sesión activa
     onSnapshot(query(collection(db, "productos"), orderBy("nombre")), (snapshot) => {
         productos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderizarCatalogoTarjetas();
@@ -126,26 +141,58 @@ function escucharDatosFirebase() {
         combos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderizarCatalogoTarjetas();
     });
-
-    onSnapshot(query(collection(db, "transacciones"), orderBy("timestamp", "desc")), (snapshot) => {
-        transacciones = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        procesarYRenderizarBalance();
-    });
-
-    onSnapshot(doc(db, "configuracion", "caja_daesmi"), (docSnap) => {
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            capitalBaseFijo = data.capitalBase || 0;
-            retirosAcumulados = data.retiros || 0;
-        } else {
-            setDoc(doc(db, "configuracion", "caja_daesmi"), { capitalBase: 0, retiros: 0 });
-        }
-        if (transacciones.length > 0) {
-            procesarYRenderizarBalance();
-        }
-    });
 }
 
+// NUEVA FUNCIÓN PRIVADA: Solo se invoca cuando el administrador se autentica con éxito
+function activarEscuchasFinancierasPrivadas() {
+    // Si ya existía una escucha activa previa, la apagamos para no duplicar procesos
+    desactivarEscuchasFinancierasPrivadas();
+
+    console.log("🔒 Activando canales de tiempo real seguros para administración...");
+
+    desesqucharTransacciones = onSnapshot(
+        query(collection(db, "transacciones"), orderBy("timestamp", "desc")), 
+        (snapshot) => {
+            transacciones = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            procesarYRenderizarBalance();
+        },
+        (error) => {
+            console.error("Error en transacciones:", error);
+        }
+    );
+
+    desescucharConfiguracion = onSnapshot(
+        doc(db, "configuracion", "caja_daesmi"), 
+        (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                capitalBaseFijo = data.capitalBase || 0;
+                retirosAcumulados = data.retiros || 0;
+            } else {
+                setDoc(doc(db, "configuracion", "caja_daesmi"), { capitalBase: 0, retiros: 0 });
+            }
+            if (transacciones.length > 0) {
+                procesarYRenderizarBalance();
+            }
+        },
+        (error) => {
+            console.error("Error en configuración de caja:", error);
+        }
+    );
+}
+
+// NUEVA FUNCIÓN DE LIMPIEZA: Apaga los flujos de datos privados al cerrar sesión
+function desactivarEscuchasFinancierasPrivadas() {
+    if (typeof desesqucharTransacciones === "function") {
+        desesqucharTransacciones();
+        desesqucharTransacciones = null;
+    }
+    if (typeof desescucharConfiguracion === "function") {
+        desescucharConfiguracion();
+        desescucharConfiguracion = null;
+    }
+    console.log("🔓 Canales financieros privados desvinculados.");
+}
 // ========================================================
 // 3. NAVEGACIÓN Y EVENTOS CENTRALIZADOS
 // ========================================================
