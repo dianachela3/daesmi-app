@@ -306,37 +306,52 @@ window.actualizarCapitalBaseDesdeAjustes = async function() {
 // 5. FILTROS Y BALANCE FINANCIERO
 // ========================================================
 function configurarSelectoresFiltro() {
-    const btnHoy = document.getElementById("filtro-hoy");
-    const btnSemana = document.getElementById("filtro-semana");
-    const btnMes = document.getElementById("filtro-mes");
+    const filtroMesSelect = document.getElementById("filtro-mes-select");
 
-    const cambiarFiltroVisual = (filtro, btnActivo) => {
-        filtroFechaActual = filtro;
-        [btnHoy, btnSemana, btnMes].forEach(b => {
-            if(b) b.className = "flex-1 text-center py-2 bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer";
+    if (filtroMesSelect) {
+        // Escuchamos cuando cambies de opción en el menú desplegable
+        filtroMesSelect.addEventListener("change", () => {
+            // Guardamos la selección global si la necesitas en otra parte (ej: "actual", "anterior", "todos")
+            filtroFechaActual = filtroMesSelect.value;
+            
+            // Volvemos a calcular todo el balance de inmediato
+            procesarYRenderizarBalance();
         });
-        if(btnActivo) {
-            btnActivo.className = "flex-1 text-center py-2 bg-purple-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer";
-        }
-        procesarYRenderizarBalance();
-    };
-
-    if(btnHoy) btnHoy.addEventListener("click", () => cambiarFiltroVisual("hoy", btnHoy));
-    if(btnSemana) btnSemana.addEventListener("click", () => cambiarFiltroVisual("semana", btnSemana));
-    if(btnMes) btnMes.addEventListener("click", () => cambiarFiltroVisual("mes", btnMes));
+        
+        // Inicializamos la variable con el valor por defecto que tenga el select ("actual")
+        filtroFechaActual = filtroMesSelect.value;
+    }
 }
 
 function cumpleFiltroFecha(timestamp) {
-    const ahora = new Date();
-    const fechaTransaccion = new Date(timestamp);
+    // Si la transacción no tiene fecha o seleccionaste ver todo el historial
+    if (filtroFechaActual === "todos") return true;
+    if (!timestamp) return false;
 
-    if (filtroFechaActual === "hoy") {
-        return ahora.toDateString() === fechaTransaccion.toDateString();
-    } else if (filtroFechaActual === "semana") {
-        return timestamp >= (Date.now() - (7 * 24 * 60 * 60 * 1000));
-    } else if (filtroFechaActual === "mes") {
-        return ahora.getMonth() === fechaTransaccion.getMonth() && ahora.getFullYear() === fechaTransaccion.getFullYear();
+    // Convertir el timestamp de Firebase a un objeto Date nativo de JavaScript
+    const fechaTransaccion = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    
+    const ahora = new Date();
+    const añoActual = ahora.getFullYear();
+    const mesActual = ahora.getMonth(); // 0 = Enero, 11 = Diciembre
+
+    const añoT = fechaTransaccion.getFullYear();
+    const mesT = fechaTransaccion.getMonth();
+
+    // Filtro para el Mes Actual
+    if (filtroFechaActual === "actual") {
+        return añoT === añoActual && mesT === mesActual;
     }
+
+    // Filtro para el Mes Anterior
+    if (filtroFechaActual === "anterior") {
+        // Validamos el caso especial: si estamos en Enero (0), el mes anterior es Diciembre (11) del año pasado
+        const añoObjetivo = mesActual === 0 ? añoActual - 1 : añoActual;
+        const mesObjetivo = mesActual === 0 ? 11 : mesActual - 1;
+        
+        return añoT === añoObjetivo && mesT === mesObjetivo;
+    }
+
     return true;
 }
 
