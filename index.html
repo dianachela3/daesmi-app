@@ -4,145 +4,183 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DAESMI · Catálogo y Gestión</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="bg-slate-50 text-slate-800 antialiased font-sans pb-28">
+<body class="bg-slate-50 text-slate-800 antialiased font-sans pb-24">
 
+    <!-- CONTENEDOR PRINCIPAL -->
     <main class="max-w-md mx-auto min-h-screen flex flex-col p-4 bg-slate-50">
         
+        <!-- HEADER GENERAL -->
         <header class="flex justify-between items-center mb-6">
             <div>
                 <h1 class="text-xl font-black text-purple-900 tracking-tight">DAESMI</h1>
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cosmetics & Accessories</p>
             </div>
+            <!-- Botón dinámico de acceso / perfil -->
             <button id="btn-estado-sesion" class="bg-purple-100 p-2 rounded-xl text-purple-800 shadow-xs cursor-pointer flex items-center gap-1.5 text-xs font-bold">
-                <i data-lucide="user" class="w-3.5 h-3.5"></i>
-                <span id="txt-estado-sesion">Login</span>
+                <i data-lucide="user" class="w-4 h-4"></i> <span id="txt-estado-sesion">Login</span>
             </button>
         </header>
 
-        <section id="contenedor-alertas-stock" class="hidden mb-4 space-y-2">
-            </section>
+        <!-- ========================================== -->
+        <!-- VISTA EXCLUSIVA: LOGIN -->
+        <!-- ========================================== -->
+        <section id="view-login" class="hidden my-auto py-12 space-y-4">
+            <div class="text-center">
+                <h3 class="text-base font-black text-purple-950">Panel Administrativo</h3>
+                <p class="text-xs text-slate-400">Ingresa tus credenciales seguras para gestionar caja y stocks</p>
+            </div>
+            <form id="form-login" class="bg-white p-5 rounded-2xl border border-slate-100 shadow-md space-y-3">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Correo Electrónico</label>
+                    <input type="email" id="login-email" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none focus:border-purple-600">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Contraseña</label>
+                    <input type="password" id="login-password" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none focus:border-purple-600">
+                </div>
+                <button type="submit" class="w-full bg-purple-800 hover:bg-purple-900 text-white p-3 rounded-xl font-bold text-xs transition-colors cursor-pointer">Iniciar Sesión</button>
+                <button type="button" id="btn-cancelar-login" class="w-full text-slate-400 text-xs font-bold text-center mt-1 cursor-pointer">Volver al Catálogo</button>
+            </form>
+        </section>
 
+        <!-- ========================================== -->
+        <!-- VISTA PRIVADA: BALANCE (SOLO ADMIN) -->
+        <!-- ========================================== -->
         <section id="view-balance" class="hidden space-y-4">
-            <div class="flex justify-between items-center bg-white p-2 rounded-2xl border border-slate-100 shadow-xs">
-                <div class="flex gap-1">
-                    <button id="filtro-hoy" class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-slate-200 text-slate-700 cursor-pointer">Hoy</button>
-                    <button id="filtro-semana" class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-slate-200 text-slate-700 cursor-pointer">Semana</button>
-                    <button id="filtro-mes" class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-purple-600 text-white cursor-pointer">Mes</button>
+            <div class="bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 text-white p-6 rounded-2xl shadow-xl border border-purple-950 relative overflow-hidden">
+                <div class="absolute -right-6 -bottom-6 text-purple-700/20 pointer-events-none">
+                    <i data-lucide="wallet" class="w-32 h-32"></i>
                 </div>
-                <button type="button" onclick="window.exportarHistorialMensual()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-xl text-xs font-black flex items-center gap-1 transition-all cursor-pointer shadow-xs">
-                    <i data-lucide="download" class="w-3.5 h-3.5"></i> Exportar
-                </button>
+                <p class="text-xs font-semibold uppercase tracking-wider text-purple-200">Ganancia Neta Disponible</p>
+                <h2 id="bal-ganancia-neta" class="text-4xl font-black tracking-tight my-1">$0.00</h2>
+                <p class="text-[10px] text-purple-300">Calculado sobre productos cobrados</p>
             </div>
 
-            <div class="grid grid-cols-2 gap-3">
-                <div class="bg-gradient-to-br from-purple-900 to-purple-950 text-white p-4 rounded-3xl shadow-sm space-y-1 relative overflow-hidden col-span-2">
-                    <p class="text-[10px] font-bold uppercase tracking-wider text-purple-200">Ganancia Neta del Periodo</p>
-                    <p id="bal-ganancia-neta" class="text-2xl font-black tracking-tight">$0</p>
-                    <div class="absolute -right-4 -bottom-4 text-purple-800/30">
-                        <i data-lucide="trending-up" class="w-24 h-24"></i>
-                    </div>
+            <!-- Grilla de Tarjetas Básicas con IDs Originales -->
+            <div class="grid grid-cols-3 gap-2">
+                <div class="bg-white p-3 rounded-xl border border-slate-100 shadow-xs">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Ingresos</p>
+                    <p id="bal-total-ventas" class="text-sm font-black text-emerald-600 mt-0.5">+$0.00</p>
                 </div>
-
-                <div class="bg-white p-3 rounded-2xl border border-slate-100 shadow-xs space-y-0.5">
-                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Ventas Recaudadas</p>
-                    <p id="bal-total-ventas" class="text-sm font-black text-emerald-600">$0</p>
+                <div class="bg-white p-3 rounded-xl border border-slate-100 shadow-xs">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Inversión</p>
+                    <p id="bal-total-costos" class="text-sm font-black text-rose-500 mt-0.5">-$0.00</p>
                 </div>
-
-                <div class="bg-white p-3 rounded-2xl border border-slate-100 shadow-xs space-y-0.5">
-                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Costo Inversión</p>
-                    <p id="bal-total-costos" class="text-sm font-black text-rose-500">$0</p>
-                </div>
-
-                <div class="bg-white p-3 rounded-2xl border border-slate-100 shadow-xs space-y-0.5 col-span-2">
-                    <p class="text-[9px] font-bold text-amber-600 uppercase tracking-wider">Cuentas por Cobrar (Pendientes)</p>
-                    <p id="bal-total-deudas" class="text-sm font-black text-amber-600">$0</p>
+                <div class="bg-amber-50 p-3 rounded-xl border border-amber-100 shadow-xs">
+                    <p class="text-[10px] font-bold text-amber-700 uppercase">Por Cobrar</p>
+                    <p id="bal-total-deudas" class="text-sm font-black text-amber-600 mt-0.5">$0.00</p>
                 </div>
             </div>
 
-            <div class="bg-white p-4 rounded-3xl border border-slate-100 shadow-xs space-y-3">
-                <div class="flex justify-between items-center">
-                    <h3 class="text-xs font-black uppercase text-purple-950 tracking-wider flex items-center gap-1">
-                        <i data-lucide="vault" class="w-3.5 h-3.5 text-purple-700"></i> Bóveda Caja Fuerte (Físico)
-                    </h3>
-                    <div class="flex gap-1.5">
-                        <button type="button" onclick="window.ajustarCapitalBaseManual()" class="text-[9px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded-lg transition-colors cursor-pointer">Base ✎</button>
-                        <button type="button" onclick="window.abrirModalRetiro()" class="text-[9px] font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 px-2 py-1 rounded-lg transition-colors cursor-pointer">Retirar 💸</button>
+            <div class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 text-white p-4 rounded-2xl shadow-md my-2">
+                <div class="flex justify-between items-center border-b border-slate-700 pb-2 mb-2.5">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-sm">🪙</span>
+                        <h3 class="text-[10px] font-black uppercase tracking-wider text-slate-300">Caja Fuerte DAESMI</h3>
                     </div>
+                    <button type="button" onclick="window.abrirModalRetiro()" class="bg-purple-600 hover:bg-purple-700 text-white text-[9px] font-bold px-2 py-0.5 rounded-lg transition-all shadow-xs cursor-pointer">
+                        Retirar Utilidad
+                    </button>
                 </div>
-                <div class="grid grid-cols-3 gap-2 border-t border-slate-50 pt-2.5 text-center">
-                    <div>
-                        <p class="text-[8px] font-bold text-slate-400 uppercase">Capital Base</p>
-                        <p id="caja-capital-base" class="text-xs font-bold text-slate-700">$0</p>
+
+                <div class="grid grid-cols-3 gap-1.5 text-center">
+                    <div class="bg-slate-800/60 p-2 rounded-xl border border-slate-700/40">
+                        <p class="text-[8px] uppercase font-bold text-slate-400">Capital Base</p>
+                        <span id="caja-capital-base" class="text-xs font-black text-purple-400">$0</span>
+                        <button type="button" onclick="window.ajustarCapitalBaseManual()" class="block w-full text-[7px] text-slate-500 underline hover:text-slate-300 mt-0.5 cursor-pointer">Definir</button>
                     </div>
-                    <div>
-                        <p class="text-[8px] font-bold text-slate-400 uppercase">Utilidad Libre</p>
-                        <p id="caja-ganancia-libre" class="text-xs font-bold text-purple-800">$0</p>
+
+                    <div class="bg-slate-800/60 p-2 rounded-xl border border-slate-700/40">
+                        <p class="text-[8px] uppercase font-bold text-slate-400">Utilidad Libre</p>
+                        <span id="caja-ganancia-libre" class="text-xs font-black text-emerald-400">$0</span>
                     </div>
-                    <div class="bg-purple-50/50 rounded-xl py-1">
-                        <p class="text-[8px] font-black text-purple-900 uppercase">Total Efectivo</p>
-                        <p id="caja-efectivo-total" class="text-xs font-black text-purple-950">$0</p>
+
+                    <div class="bg-purple-950/40 p-2 rounded-xl border border-purple-500/20">
+                        <p class="text-[8px] uppercase font-bold text-purple-300">Efectivo Total</p>
+                        <span id="caja-efectivo-total" class="text-xs font-black text-amber-400">$0</span>
                     </div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-2">
-                <button id="btn-dash-venta" class="bg-purple-800 hover:bg-purple-900 text-white p-3 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer">
-                    <i data-lucide="plus-circle" class="w-4 h-4"></i> Asentar Venta
-                </button>
-                <button id="btn-dash-combo" class="bg-slate-900 hover:bg-slate-800 text-white p-3 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer">
-                    <i data-lucide="package" class="w-4 h-4"></i> Armar Kit / Combo
-                </button>
+            <!-- NUEVO PUNTO 1: BOTONES DE FILTRO DE FECHAS -->
+            <div class="flex gap-2 pt-1">
+                <button id="filtro-hoy" class="flex-1 text-center py-2 bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer">Hoy</button>
+                <button id="filtro-semana" class="flex-1 text-center py-2 bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer">7 Días</button>
+                <button id="filtro-mes" class="flex-1 text-center py-2 bg-purple-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer">Este Mes</button>
             </div>
 
-            <div class="space-y-2">
-                <h3 class="text-xs font-black uppercase text-slate-400 tracking-wider">Historial de Operaciones</h3>
-                <div id="lista-transacciones" class="space-y-2">
-                    </div>
-            </div>
-        </section>
-
-        <section id="view-inventario" class="space-y-4">
-            
-            <div id="seccion-destacados-cliente" class="hidden space-y-2">
-                <h3 class="text-xs font-black uppercase text-purple-900 tracking-wider flex items-center gap-1">
-                    <i data-lucide="sparkles" class="w-3.5 h-3.5 text-purple-600 animate-pulse"></i> Los Más Amados de DAESMI
+            <!-- NUEVO PUNTO 2: TARJETA DEL TOP 3 DE MÁS VENDIDOS -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs space-y-2">
+                <h3 class="text-[10px] font-bold uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                    <i data-lucide="flame" class="w-3.5 h-3.5 text-amber-500"></i> Productos Más Vendidos
                 </h3>
-                <div id="lista-top-productos-cliente" class="grid grid-cols-1 gap-2">
-                    </div>
-            </div>
-
-            <div class="space-y-2.5">
-                <div class="relative flex-1">
-                    <input type="text" id="input-busqueda" placeholder="Buscar cosmético, accesorio o kit..." class="w-full bg-white border border-slate-200 p-2.5 pl-9 rounded-2xl text-xs focus:outline-none focus:border-purple-600 shadow-2xs font-medium">
-                    <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3.5"></i>
-                </div>
-                
-                <div id="barras-categorias-filtro" class="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                    </div>
-
-                <div id="wrapper-acciones-inventario" class="hidden flex gap-2">
-                    <button id="btn-nuevo-producto" class="flex-1 bg-white hover:bg-slate-50 text-purple-800 border border-purple-200 p-2 rounded-xl text-[11px] font-black transition-all flex items-center justify-center gap-1 shadow-2xs cursor-pointer">
-                        <i data-lucide="plus" class="w-3.5 h-3.5"></i> Producto Simple
-                    </button>
-                    <button id="btn-nuevo-combo" class="flex-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 p-2 rounded-xl text-[11px] font-black transition-all flex items-center justify-center gap-1 shadow-2xs cursor-pointer">
-                        <i data-lucide="layers" class="w-3.5 h-3.5"></i> Kit Estacional
-                    </button>
+                <div id="lista-top-productos" class="space-y-1.5 pt-1">
+                    <!-- Se llena solo mediante JavaScript -->
                 </div>
             </div>
 
-            <div id="lista-inventario" class="grid grid-cols-1 gap-3">
-                </div>
+            <!-- Botones de Acción Rápidos -->
+            <div class="grid grid-cols-2 gap-3 pt-1">
+                <button id="btn-dash-venta" class="bg-purple-800 hover:bg-purple-900 text-white p-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer">
+                    <i data-lucide="shopping-bag" class="w-4 h-4"></i> Registrar Venta
+                </button>
+                <button id="btn-dash-combo" class="bg-white hover:bg-slate-50 text-purple-900 p-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border border-purple-100 shadow-xs transition-all cursor-pointer">
+                    <i data-lucide="package-plus" class="w-4 h-4"></i> Armar Combo Kit
+                </button>
+            </div>
+
+            <!-- Historial de Transacciones -->
+            <div class="pt-2">
+                <h3 class="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Historial de Movimientos</h3>
+                <div id="lista-transacciones" class="space-y-2"></div>
+            </div>
         </section>
 
+        <!-- ========================================== -->
+        <!-- VISTA MIXTA: INVENTARIO / CATÁLOGO PÚBLICO -->
+        <!-- ========================================== -->
+        <section id="view-inventario" class="space-y-4">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h3 id="titulo-catalogo" class="text-base font-black text-slate-800">Catálogo Digital</h3>
+                    <p id="desc-catalogo" class="text-[11px] text-slate-400">Explora nuestros productos y kits exclusivos</p>
+                </div>
+            </div>
+
+            <!-- NUEVO PUNTO 3: CONTENEDOR DE ALERTAS DE STOCK BAJO -->
+            <div id="contenedor-alertas-stock" class="space-y-2">
+                <!-- Mensajes en rojo/amarillo inyectados por JS automáticamente -->
+            </div>
+
+            <!-- Botonera de Creación (Solo visible para Admin) -->
+            <div id="wrapper-acciones-inventario" class="hidden grid grid-cols-2 gap-2">
+                <button id="btn-nuevo-producto" class="bg-slate-900 text-white p-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Producto Simple
+                </button>
+                <button id="btn-nuevo-combo" class="bg-purple-700 text-white p-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer">
+                    <i data-lucide="package" class="w-4 h-4"></i> Armar Kit Combo
+                </button>
+            </div>
+
+            <!-- Lista Unificada de Inventario / Catálogo -->
+            <div id="lista-inventario" class="space-y-3 pt-2"></div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- VISTA PRIVADA: AJUSTES (SOLO ADMIN) -->
+        <!-- ========================================== -->
         <section id="view-ajustes" class="hidden space-y-4">
             <div>
                 <h3 class="text-base font-black text-slate-800">Ajustes Generales</h3>
                 <p class="text-[11px] text-slate-400">Control de la plataforma en la nube</p>
             </div>
 
+            <!-- Panel de Auditoría de Caja Fuerte (Nuevo Bloque) -->
             <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs space-y-3">
                 <h4 class="text-xs font-black uppercase text-purple-950 tracking-wider flex items-center gap-1">
                     <i data-lucide="shield-check" class="w-3.5 h-3.5 text-purple-700"></i> Auditoría Financiera
@@ -162,6 +200,7 @@
                 </div>
             </div>
 
+            <!-- Botón de Cierre de Sesión -->
             <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-xs space-y-3 text-center">
                 <p class="text-xs text-slate-500">Sesión activa en servidores seguros de Firebase.</p>
                 <button id="btn-cerrar-sesion" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 p-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer">
@@ -170,82 +209,182 @@
             </div>
         </section>
 
-        <section id="view-login" class="hidden space-y-4 pt-6">
-            <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-xs space-y-4">
-                <div class="text-center">
-                    <h3 class="font-black text-slate-800 text-base">Autenticación Requerida</h3>
-                    <p class="text-[11px] text-slate-400">Panel de control contable y de stock</p>
-                </div>
-                <form id="form-login" class="space-y-3">
-                    <div>
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Correo Electrónico</label>
-                        <input type="email" id="login-email" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none focus:border-purple-600 font-medium">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Contraseña</label>
-                        <input type="password" id="login-password" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none focus:border-purple-600 font-medium">
-                    </div>
-                    <div class="flex gap-2 pt-2">
-                        <button type="button" id="btn-cancelar-login" class="flex-1 bg-slate-100 text-slate-600 p-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer">Volver</button>
-                        <button type="submit" class="flex-1 bg-purple-800 text-white p-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer">Entrar</button>
-                    </div>
-                </form>
-            </div>
-        </section>
-
     </main>
 
-    <!-- ========================================== -->
-    <!-- OBSERVACIÓN 5: BARRA FLOTANTE INTERFAZ CARRITO CLIENTE (CORREGIDA) -->
-    <!-- ========================================== -->
-    <div id="barra-flotante-carrito" class="fixed bottom-20 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-sm bg-gradient-to-r from-purple-900 to-purple-950 text-white p-3.5 rounded-2xl shadow-xl hidden justify-between items-center z-40 animate-pulse">
-        <div class="flex items-center gap-2">
-            <div class="bg-white/20 w-6 h-6 rounded-lg flex items-center justify-center font-black text-xs text-white">
-                <span id="carrito-badge-conteo">0</span>
-            </div>
-            <p class="text-[11px] font-bold tracking-wide">Productos en tu bolsa</p>
-        </div>
-        <button type="button" onclick="window.abrirModalCarritoCompleto()" class="bg-white text-purple-950 font-black text-[10px] px-3 py-2 rounded-xl active:scale-95 transition-all uppercase tracking-wider cursor-pointer shadow-md shrink-0">
-            Ver mi pedido
-        </button>
-    </div>
-
-    <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-100 p-2 flex justify-around items-center z-40 max-w-md mx-auto">
-        <button id="nav-inventario" class="flex flex-col items-center gap-0.5 text-purple-800 font-bold text-[10px] transition-colors cursor-pointer">
-            <i data-lucide="shopping-bag" class="w-4 h-4"></i> Catálogo
-        </button>
-        <button id="nav-balance" class="hidden flex flex-col items-center gap-0.5 text-slate-400 text-[10px] transition-colors cursor-pointer">
-            <i data-lucide="bar-chart-3" class="w-4 h-4"></i> Balance
-        </button>
-        <button id="nav-ajustes" class="hidden flex flex-col items-center gap-0.5 text-slate-400 text-[10px] transition-colors cursor-pointer">
-            <i data-lucide="settings" class="w-4 h-4"></i> Ajustes
-        </button>
-    </nav>
-
-
-    <div id="modal-carrito-cliente" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden justify-center items-center z-50 p-4">
-        <div class="bg-white max-w-sm w-full rounded-3xl p-5 shadow-2xl space-y-4">
-            <div class="flex justify-between items-center">
-                <h4 class="font-black text-slate-800 text-sm flex items-center gap-1.5"><i data-lucide="shopping-cart" class="text-purple-800 w-4 h-4"></i> Bolsa de Pedido</h4>
-                <button onclick="window.cerrarModalCarritoCompleto()" class="text-slate-400 font-bold text-xs p-1 cursor-pointer">✕</button>
-            </div>
-            <p class="text-[11px] text-slate-400">Confirma los productos elegidos de DAESMI. Tu pedido se empaquetará de forma automatizada al enviarlo a WhatsApp.</p>
-            
-            <div id="carrito-lista-items" class="space-y-2 max-h-48 overflow-y-auto pt-1">
-                </div>
-
-            <div class="border-t border-slate-100 pt-3 flex justify-between items-center">
-                <span class="text-xs font-bold text-slate-500">Total a Pagar:</span>
-                <span id="carrito-total-monto" class="text-base font-black text-purple-950">$0</span>
-            </div>
-
-            <button type="button" onclick="window.enviarPedidoWhatsApp()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white p-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer">
-                <i data-lucide="message-square" class="w-4 h-4"></i> Enviar Pedido vía WhatsApp
+    <!-- NAVEGACIÓN INFERIOR DINÁMICA -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 p-3 shadow-lg z-40">
+        <div class="max-w-md mx-auto flex justify-around items-center">
+            <button id="nav-balance" class="hidden flex flex-col items-center gap-1 text-slate-400 font-medium transition-colors cursor-pointer">
+                <i data-lucide="pie-chart" class="w-5 h-5"></i>
+                <span class="text-[10px]">Caja</span>
+            </button>
+            <button id="nav-inventario" class="flex flex-col items-center gap-1 text-purple-800 font-bold transition-colors cursor-pointer">
+                <i data-lucide="layers" class="w-5 h-5"></i>
+                <span class="text-[10px]">Catálogo</span>
+            </button>
+            <button id="nav-ajustes" class="hidden flex flex-col items-center gap-1 text-slate-400 font-medium transition-colors cursor-pointer">
+                <i data-lucide="sliders" class="w-5 h-5"></i>
+                <span class="text-[10px]">Ajustes</span>
             </button>
         </div>
+    </nav>
+
+    <!-- MODAL: PRODUCTO SIMPLE -->
+    <div id="modal-producto" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden justify-center items-end z-50 p-4">
+        <div class="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-center">
+                <h4 class="font-black text-slate-800 text-sm">Añadir Nuevo Producto</h4>
+                <button id="btn-cerrar-modal-prod" class="text-slate-400 font-bold text-xs p-1 cursor-pointer">✕</button>
+            </div>
+            <form id="form-producto" class="space-y-3">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nombre Comercial</label>
+                    <input type="text" id="prod-nombre" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none focus:border-purple-600">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Descripción Comercial</label>
+                    <textarea id="prod-descripcion" rows="2" class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none focus:border-purple-600 resize-none"></textarea>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">URL de la Imagen (Opcional)</label>
+                    <input type="url" id="prod-foto" class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none" placeholder="https://ejemplo.com/foto.jpg">
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Costo ($)</label>
+                        <input type="number" step="0.01" id="prod-costo" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">P. Venta ($)</label>
+                        <input type="number" step="0.01" id="prod-precio" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Stock</label>
+                        <input type="number" id="prod-stock" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none">
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-purple-800 text-white p-3 rounded-xl font-bold text-xs mt-2 cursor-pointer">Guardar Artículo</button>
+            </form>
+        </div>
     </div>
 
-    <div id="modal-retiro-ganancias" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden justify-center items-center z-50 p-4">
+    <!-- MODAL: COMBOS / KITS -->
+    <div id="modal-combo" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden justify-center items-end z-50 p-4">
+        <div class="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-center">
+                <h4 class="font-black text-slate-800 text-sm">Armar Nuevo Combo</h4>
+                <button id="btn-cerrar-modal-combo" class="text-slate-400 font-bold text-xs p-1 cursor-pointer">✕</button>
+            </div>
+            <form id="form-combo" class="space-y-3">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nombre del Combo / Kit</label>
+                    <input type="text" id="combo-nombre" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Descripción del Combo</label>
+                    <textarea id="combo-descripcion" rows="2" class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none resize-none"></textarea>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">URL Imagen Combo (Opcional)</label>
+                    <input type="url" id="combo-foto" class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs focus:outline-none" placeholder="https://...jpg">
+                </div>
+                <div class="bg-slate-50 p-3 rounded-xl border border-dashed space-y-2">
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase">Añadir Productos</label>
+                    <div class="flex gap-2">
+                        <select id="combo-select-producto" class="w-full bg-white border p-2 rounded-xl text-xs"></select>
+                        <button type="button" id="btn-agregar-item-combo" class="bg-slate-900 text-white px-3 rounded-xl text-xs font-bold cursor-pointer">+</button>
+                    </div>
+                    <!-- Lista modular enlazada con JS -->
+                    <ul id="combo-lista-productos-temporal" class="space-y-1 pt-1 max-h-32 overflow-y-auto"></ul>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Costo Base</label>
+                        <div id="combo-costo-calculado" class="w-full bg-slate-100 p-2.5 rounded-xl text-xs font-bold text-slate-600">$0.00</div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Precio Final ($)</label>
+                        <input type="number" step="0.01" id="combo-precio-venta" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs font-bold">
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-purple-800 text-white p-3 rounded-xl font-bold text-xs cursor-pointer">Guardar Combo Kit</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: REGISTRAR VENTA -->
+    <div id="modal-venta" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden justify-center items-end z-50 p-4">
+        <div class="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center">
+                <h4 class="font-black text-slate-800 text-sm">Registrar Nueva Venta</h4>
+                <button id="btn-cerrar-modal-venta" class="text-slate-400 font-bold text-xs p-1 cursor-pointer">✕</button>
+            </div>
+            <form id="form-venta" class="space-y-3">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Seleccionar Artículo</label>
+                    <select id="venta-select-item" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs"></select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Estado</label>
+                    <select id="venta-estado-pago" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs font-medium">
+                        <option value="pagado">🟢 Pagado Completo (Caja)</option>
+                        <option value="pendiente">🟡 Pendiente (Fiado)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Precio Cobrado ($)</label>
+                    <input type="number" step="0.01" id="venta-precio-final" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs font-bold">
+                </div>
+                <div class="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">¿Asumiste parte del envío?</label>
+                    <div class="flex gap-4 mb-2">
+                        <label class="inline-flex items-center text-xs">
+                            <input type="radio" name="asumio-envio" value="no" checked class="text-purple-600 focus:ring-purple-500" onchange="document.getElementById('contenedor-envio-asumido').classList.add('hidden')">
+                            <span class="ml-1.5 text-slate-600">No, lo pagó el cliente completo</span>
+                        </label>
+                        <label class="inline-flex items-center text-xs">
+                            <input type="radio" name="asumio-envio" value="si" class="text-purple-600 focus:ring-purple-500" onchange="document.getElementById('contenedor-envio-asumido').classList.remove('hidden')">
+                            <span class="ml-1.5 text-slate-600 font-medium text-purple-700">Sí, asumí una parte</span>
+                        </label>
+                    </div>
+                    
+                    <div id="contenedor-envio-asumido" class="hidden mt-2">
+                        <label for="venta-envio-asumido" class="block text-[10px] font-bold text-purple-600 uppercase mb-1">¿Cuánto dinero pusiste de tu bolsillo?</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 text-xs">$</span>
+                            <input type="number" id="venta-envio-asumido" value="0" min="0" placeholder="Ej: 2000" class="w-full pl-6 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs focus:outline-hidden focus:ring-1 focus:ring-purple-500 focus:border-purple-500">
+                        </div>
+                        <p class="text-[9px] text-slate-400 mt-1">Este valor se restará automáticamente del reporte de tus ganancias netas.</p>
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-purple-800 text-white p-3 rounded-xl font-bold text-xs cursor-pointer">Completar Operación</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- POP-UP MARKETING -->
+    <div id="modal-marketing" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden justify-center items-center z-50 p-4">
+        <div class="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center">
+                <h4 class="font-black text-slate-800 text-sm">Herramienta de Catálogo</h4>
+                <button onclick="document.getElementById('modal-marketing').classList.remove('flex'); document.getElementById('modal-marketing').classList.add('hidden');" class="text-slate-400 font-bold text-xs p-1 cursor-pointer">✕</button>
+            </div>
+            <div id="mkt-tarjeta-visual" class="w-full rounded-2xl bg-gradient-to-tr from-fuchsia-100 via-purple-50 to-pink-100 p-6 border border-purple-200/60 text-center flex flex-col justify-center items-center space-y-3 relative overflow-hidden min-h-[220px]">
+                <div class="absolute top-2 left-3 text-[8px] font-bold tracking-widest text-purple-400 uppercase">DAESMI</div>
+                <h3 id="mkt-preview-titulo" class="font-black text-xl text-purple-950 tracking-tight">Nombre</h3>
+                <p id="mkt-preview-desc" class="text-xs text-purple-800/80 px-4 line-clamp-3">Descripción</p>
+                <div class="bg-purple-900 text-white text-sm font-black px-4 py-1.5 rounded-full shadow-md"><span id="mkt-preview-precio">$0.00</span></div>
+            </div>
+            <div class="space-y-1.5">
+                <textarea id="mkt-texto-copy" rows="4" class="w-full p-3 bg-slate-50 border rounded-xl text-xs font-mono resize-none"></textarea>
+                <button id="btn-copiar-copy" class="w-full bg-slate-900 text-white p-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 cursor-pointer">
+                    <i data-lucide="clipboard" class="w-3.5 h-3.5"></i> Copiar Texto Comercial
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-retiro-ganancias" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
             <div class="flex justify-between items-center">
                 <h4 class="font-black text-slate-800 text-sm">💸 Registrar Retiro de Utilidades</h4>
@@ -260,198 +399,12 @@
 
             <div class="flex gap-2 justify-end pt-2">
                 <button type="button" onclick="window.cerrarModalRetiro()" class="px-3 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold cursor-pointer">Cancelar</button>
-                <button type="button" onclick="window.ejecutarRetiroGanancias()" class="px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold cursor-pointer shadow-xs">Confirmar Retiro</button>
+                <button type="button" onclick="window.ejecutarRetiroGanancias()" class="px-3 py-2 bg-purple-800 text-white rounded-xl text-xs font-bold hover:bg-purple-900 cursor-pointer">Confirmar Retiro</button>
             </div>
         </div>
     </div>
 
-    <!-- MODAL: CREAR / EDITAR PRODUCTO CON VARIACIONES -->
-    <div id="modal-producto" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden justify-center items-center z-50 p-4">
-        <form id="form-producto" class="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl space-y-3 overflow-y-auto max-h-[90vh]">
-            <div class="flex justify-between items-center">
-                <h4 class="font-black text-slate-800 text-sm">Ficha de Producto</h4>
-                <button type="button" id="btn-cerrar-modal-prod" class="text-slate-400 font-bold text-xs p-1 cursor-pointer">✕</button>
-            </div>
-            
-            <div class="space-y-2">
-                <div>
-                    <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Nombre comercial</label>
-                    <input type="text" id="prod-nombre" required class="w-full bg-slate-50 border p-2 rounded-xl text-xs font-medium focus:outline-hidden">
-                </div>
-                <div>
-                    <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Categoría / Línea</label>
-                    <input type="text" id="prod-categoria" placeholder="Ej: Maquillaje, Accesorios" required class="w-full bg-slate-50 border p-2 rounded-xl text-xs font-bold focus:outline-hidden">
-                </div>
-                <div>
-                    <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Descripción para copy</label>
-                    <textarea id="prod-descripcion" rows="2" class="w-full bg-slate-50 border p-2 rounded-xl text-xs font-medium focus:outline-hidden"></textarea>
-                </div>
-                <div>
-                    <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">URL de la Foto</label>
-                    <input type="url" id="prod-foto" placeholder="https://..." class="w-full bg-slate-50 border p-2 rounded-xl text-xs focus:outline-hidden">
-                </div>
-
-                <!-- NUEVO SECTOR: ACTIVADOR DE VARIACIONES -->
-                <div class="bg-purple-50/50 p-2.5 rounded-xl border border-purple-100 space-y-2">
-                    <label class="flex items-center gap-1.5 cursor-pointer">
-                        <input type="checkbox" id="prod-tiene-variaciones" class="rounded text-purple-600 focus:ring-purple-500" onchange="document.getElementById('sector-campos-variaciones').classList.toggle('hidden', !this.checked)">
-                        <span class="text-[10px] font-black text-purple-950 uppercase tracking-wide">¿Tiene variaciones? (Color, Estilo, Tono)</span>
-                    </label>
-                    
-                    <div id="sector-campos-variaciones" class="hidden space-y-2 pt-1 border-t border-purple-100">
-                        <div>
-                            <label class="block text-[8px] font-bold text-purple-900 uppercase mb-0.5">Título de la Variación</label>
-                            <input type="text" id="prod-titulo-variacion" placeholder="Ej: Color, Tono, Estilo" class="w-full bg-white border p-1.5 rounded-lg text-xs font-medium focus:outline-hidden">
-                        </div>
-                        <div>
-                            <label class="block text-[8px] font-bold text-purple-900 uppercase mb-0.5">Opciones (Separadas por comas)</label>
-                            <input type="text" id="prod-opciones-variacion" placeholder="Ej: Negro, Rosado, Azul satinado" class="w-full bg-white border p-1.5 rounded-lg text-xs font-medium focus:outline-hidden">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Costo Unitario ($)</label>
-                        <input type="number" id="prod-costo" required class="w-full bg-slate-50 border p-2 rounded-xl text-xs font-bold focus:outline-hidden">
-                    </div>
-                    <div>
-                        <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Precio Venta ($)</label>
-                        <input type="number" id="prod-precio" required class="w-full bg-slate-50 border p-2 rounded-xl text-xs font-bold focus:outline-hidden">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Unidades en Stock</label>
-                    <input type="number" id="prod-stock" required class="w-full bg-slate-50 border p-2 rounded-xl text-xs font-bold focus:outline-hidden">
-                </div>
-            </div>
-
-            <div class="flex gap-2 justify-end pt-2">
-                <button type="submit" class="w-full bg-purple-800 hover:bg-purple-900 text-white p-2.5 rounded-xl text-xs font-black shadow-xs cursor-pointer">
-                    Asentar en Catálogo
-                </button>
-            </div>
-        </form>
-    </div>
-
-    <div id="modal-combo" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden justify-center items-center z-50 p-4">
-        <form id="form-combo" class="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl space-y-3 overflow-y-auto max-h-[90vh]">
-            <div class="flex justify-between items-center">
-                <h4 class="font-black text-slate-800 text-sm">Estructura de Kit / Combo</h4>
-                <button type="button" id="btn-cerrar-modal-combo" class="text-slate-400 font-bold text-xs p-1 cursor-pointer">✕</button>
-            </div>
-
-            <div class="space-y-2">
-                <div>
-                    <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Nombre del Kit</label>
-                    <input type="text" id="combo-nombre" required class="w-full bg-slate-50 border p-2 rounded-xl text-xs font-medium focus:outline-hidden">
-                </div>
-                <div>
-                    <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Frase Comercial / Descripción</label>
-                    <textarea id="combo-descripcion" rows="2" class="w-full bg-slate-50 border p-2 rounded-xl text-xs font-medium focus:outline-hidden"></textarea>
-                </div>
-                <div>
-                    <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Enlace de Imagen</label>
-                    <input type="url" id="combo-foto" placeholder="https://..." class="w-full bg-slate-50 border p-2 rounded-xl text-xs focus:outline-hidden">
-                </div>
-
-                <div class="bg-slate-50 p-2.5 rounded-2xl border border-slate-200/60 space-y-2">
-                    <label class="block text-[9px] font-black text-purple-950 uppercase">Vincular Cosméticos al Kit</label>
-                    <div class="flex gap-2">
-                        <select id="combo-select-producto" class="flex-1 bg-white border p-2 rounded-xl text-xs font-medium focus:outline-hidden">
-                            </select>
-                        <button type="button" id="btn-agregar-item-combo" class="bg-purple-800 text-white px-3 rounded-xl text-xs font-black cursor-pointer">+</button>
-                    </div>
-                    <ul id="combo-lista-productos-temporal" class="space-y-1 max-h-24 overflow-y-auto">
-                        </ul>
-                    
-                    <div class="border-t border-slate-200 pt-2 grid grid-cols-2 gap-1 text-[10px]">
-                        <p class="text-slate-400 font-medium">Inversión Costo: <span id="combo-costo-calculado" class="font-black text-slate-700">$0</span></p>
-                        <p class="text-purple-700 font-bold text-right">Precio Separado: <span id="combo-precio-base-sugerido" class="font-black text-purple-900">$0</span></p>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-[9px] font-bold text-purple-950 uppercase mb-0.5">Precio Especial del Combo ($)</label>
-                    <input type="number" id="combo-precio-venta" required class="w-full bg-purple-50/60 border border-purple-200 p-2.5 rounded-xl text-xs font-black text-purple-900 focus:outline-hidden">
-                </div>
-            </div>
-
-            <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white p-2.5 rounded-xl text-xs font-black shadow-xs mt-2 cursor-pointer">
-                Lanzar Kit al Mercado
-            </button>
-        </form>
-    </div>
-
-    <div id="modal-venta" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden justify-center items-center z-50 p-4">
-        <form id="form-venta" class="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl space-y-3">
-            <div class="flex justify-between items-center">
-                <h4 class="font-black text-slate-800 text-sm">Registrar Transacción</h4>
-                <button type="button" id="btn-cerrar-modal-venta" class="text-slate-400 font-bold text-xs p-1 cursor-pointer">✕</button>
-            </div>
-
-            <div class="space-y-2">
-                <div>
-                    <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Artículo despachado</label>
-                    <select id="venta-select-item" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs font-bold focus:outline-hidden">
-                        </select>
-                </div>
-                <div>
-                    <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Precio final de cobro ($)</label>
-                    <input type="number" id="venta-precio-final" required class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs font-black text-emerald-600 focus:outline-hidden">
-                </div>
-                
-                <div class="bg-slate-50 p-2 rounded-xl space-y-1.5 border border-slate-100">
-                    <span class="block text-[8px] font-bold text-slate-400 uppercase">¿Asumiste parte del envío?</span>
-                    <div class="flex gap-4 text-xs font-bold">
-                        <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="asumio-envio" value="no" checked onclick="document.getElementById('contenedor-envio-asumido').classList.add('hidden')"> No, pagó cliente</label>
-                        <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="asumio-envio" value="si" onclick="document.getElementById('contenedor-envio-asumido').classList.remove('hidden')"> Sí, asumido</label>
-                    </div>
-                    <div id="contenedor-envio-asumido" class="hidden mt-1">
-                        <label class="block text-[8px] font-black text-rose-600 uppercase mb-0.5">Valor subsidiado del envío ($)</label>
-                        <input type="number" id="venta-envio-asumido" value="0" class="w-full bg-white border p-1.5 rounded-lg text-xs font-bold focus:outline-hidden">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">Estado del recaudo</label>
-                    <select id="venta-estado-pago" class="w-full bg-slate-50 border p-2.5 rounded-xl text-xs font-bold focus:outline-hidden">
-                        <option value="pago">Efectivo / Transferido (Completo)</option>
-                        <option value="pendiente">Cuenta por Cobrar (Pendiente)</option>
-                    </select>
-                </div>
-            </div>
-
-            <button type="submit" class="w-full bg-purple-800 hover:bg-purple-900 text-white p-2.5 rounded-xl text-xs font-black shadow-xs mt-2 cursor-pointer">
-                Asentar Venta e Indexar Balances
-            </button>
-        </form>
-    </div>
-
-    <div id="modal-marketing" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden justify-center items-center z-50 p-4">
-        <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl border border-slate-100 space-y-4">
-            <div class="flex justify-between items-center">
-                <h4 class="font-black text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1"><i data-lucide="megaphone" class="w-4 h-4 text-purple-700"></i> Generador de Campaña</h4>
-                <button onclick="document.getElementById('modal-marketing').classList.replace('flex', 'hidden')" class="text-slate-400 font-bold text-xs p-1 cursor-pointer">✕</button>
-            </div>
-            
-            <div class="bg-gradient-to-br from-purple-50/70 to-pink-50/40 p-4 rounded-2xl border border-purple-100 space-y-2">
-                <p id="mkt-preview-titulo" class="font-black text-slate-800 text-xs">Nombre del Producto</p>
-                <p id="mkt-preview-desc" class="text-[10px] text-slate-500 line-clamp-3">Descripción para redes...</p>
-                <p id="mkt-preview-precio" class="text-xs font-black text-purple-900">$0</p>
-            </div>
-
-            <div>
-                <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">Texto persuasivo con Emojis</label>
-                <textarea id="mkt-texto-copy" rows="5" class="w-full bg-slate-50 border p-2.5 rounded-xl text-[11px] font-medium text-slate-700 focus:outline-none focus:border-purple-600 shadow-inner"></textarea>
-            </div>
-
-            <button id="btn-copiar-copy" class="w-full bg-purple-800 hover:bg-purple-900 text-white p-2.5 rounded-xl font-black text-xs transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer">
-                <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Texto Comercial
-            </button>
-        </div>
-    </div>
-
+    <!-- INCLUSIÓN MODULAR DE FIREBASE -->
     <script type="module" src="app.js"></script>
 </body>
 </html>
