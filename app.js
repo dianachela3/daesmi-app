@@ -493,27 +493,136 @@ function renderizarCatalogoTarjetas() {
 // ========================================================
 
 // 1. Control para Registro de Ventas
+// 1. Función para abrir el modal y CARGAR la lista real de productos y combos
 window.abrirModalVenta = function() {
     if (!isAdmin) return alert("Acceso denegado: Inicia sesión como administrador.");
     
-    // Si tienes campos de formulario con estos IDs, los limpia al abrir
-    const artInput = document.getElementById("venta-articulo");
-    const recInput = document.getElementById("venta-recibido");
-    const cosInput = document.getElementById("venta-costo");
-    
-    if(artInput) artInput.value = "";
-    if(recInput) recInput.value = "";
-    if(cosInput) cosInput.value = "";
-    
+    const selectArticulos = document.getElementById("venta-articulo-select");
+    if (!selectArticulos) return;
+
+    // Limpiamos el select y ponemos la opción por defecto
+    selectArticulos.innerHTML = '<option value="" disabled selected>👇 Selecciona un producto o kit...</option>';
+
+    // Agrupamos los Productos Simples en el menú
+    if (productos.length > 0) {
+        const grupoProductos = document.createElement("optgroup");
+        grupoProductos.label = "💄 PRODUCTOS INDIVIDUALES";
+        
+        productos.forEach(p => {
+            const opcion = document.createElement("option");
+            // Guardamos los datos clave en atributos data- para usarlos luego
+            opcion.value = p.id;
+            opcion.dataset.tipo = "producto";
+            opcion.dataset.nombre = p.nombre;
+            opcion.dataset.precio = p.precio;
+            opcion.dataset.costo = p.costo || 0; // Si manejas costo en el doc de producto
+            opcion.dataset.stock = p.stock;
+            opcion.innerText = `${p.nombre} (Stock: ${p.stock})`;
+            grupoProductos.appendChild(opcion);
+        });
+        selectArticulos.appendChild(grupoProductos);
+    }
+
+    // Agrupamos los Combos / Kits en el menú
+    if (combos.length > 0) {
+        const grupoCombos = document.createElement("optgroup");
+        grupoCombos.label = "📦 KITS COMBOS";
+        
+        combos.forEach(c => {
+            const opcion = document.createElement("option");
+            opcion.value = c.id;
+            opcion.dataset.tipo = "combo";
+            opcion.dataset.nombre = c.nombre;
+            opcion.dataset.precio = c.precio;
+            opcion.dataset.costo = c.costo || 0;
+            opcion.dataset.stock = c.stock || 1;
+            opcion.innerText = `${c.nombre} (Kits: ${c.stock || 1})`;
+            grupoCombos.appendChild(opcion);
+        });
+        selectArticulos.appendChild(grupoCombos);
+    }
+
+    // Escuchar el cambio en la selección para auto-llenar Precios y Costos
+    selectArticulos.addEventListener("change", (e) => {
+        const opcionSeleccionada = e.target.options[e.target.selectedIndex];
+        
+        const precioSugerido = opcionSeleccionada.dataset.precio;
+        const costoSugerido = opcionSeleccionada.dataset.costo;
+        
+        document.getElementById("venta-recibido").value = precioSugerido || 0;
+        document.getElementById("venta-costo").value = costoSugerido || 0;
+    });
+
+    // Abrir el modal visualmente
     const modal = document.getElementById("modal-registro-venta");
     if(modal) {
         modal.classList.remove("hidden");
         modal.classList.add("flex");
-    } else {
-        // Alerta de respaldo si el modal aún no se ha creado en el HTML
-        alert("Formulario de venta en desarrollo o ID 'modal-registro-venta' no encontrado.");
     }
 };
+
+// 2. Modificar el procesador del formulario para registrar la transacción Y DESCONTAR stock
+// Reemplaza la sección del formVenta dentro de tu función vincularEnvioDeModalesCaja() por esta:
+const formVenta = document.getElementById("form-registrar-venta");
+if (formVenta) {
+    formVenta.replaceWith(formVenta.cloneNode(true)); // Limpia listeners viejos
+    document.getElementById("form-registrar-venta").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!isAdmin) return;
+
+        const select = document.getElementById("venta-articulo-select");
+        const opcion = select.options[select.selectedIndex];
+        
+        const idElemento = select.value;
+        const tipo = opcion.dataset.tipo; // "producto" o "combo"
+        const nombreArticulo = opcion.dataset.nombre;
+        const stockActual = parseInt(opcion.dataset.stock) || 0;
+
+        const totalRecibido = parseFloat(document.getElementById("venta-recibido").value) || 0;
+        const costoReal = parseFloat(document.getElementById("venta-costo").value) || 0;
+        const estado = document.getElementById("venta-estado").value;
+
+        // Validación preventiva de inventario
+        if (stockActual <= 0) {
+            alert(`⚠️ No puedes vender "${nombreArticulo}" porque su stock actual es 0.`);
+            return;
+        }
+
+        const ahora = new Date();
+        const fechaLegible = ahora.toLocaleDateString("es-CO", {
+            day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit"
+        });
+
+        try {
+            // A. Registrar la venta en el historial financiero (Transacciones)
+            await addDoc(collection(db, "transacciones"), {
+                articulo: nombreArticulo,
+                totalRecibido: totalRecibido,
+                costoReal: costoReal,
+                gananciaLimpia: totalRecibido - costoReal,
+                estado: estado,
+                fecha: fechaLegible,
+                timestamp: ahora
+            });
+
+            // B. DESCONTAR 1 UNIDAD DEL INVENTARIO EN FIREBASE
+            const coleccionDestino = tipo === "producto" ? "productos" : "combos";
+            const documentoRef = doc(db, coleccionDestino, idElemento);
+            
+            await updateDoc(documentoRef, {
+                stock: stockActual - 1
+            });
+
+            alert(`🎯 ¡Venta exitosa! Se registró "${nombreArticulo}" y se descontó 1 unidad del inventario.`);
+            document.getElementById("form-registrar-venta").reset();
+            window.cerrarModalVenta();
+            
+        } catch (error) {
+            console.error("Error en la operación automatizada:", error);
+            alert("Error al procesar la venta e inventario.");
+        }
+    });
+}
 
 window.cerrarModalVenta = function() {
     const modal = document.getElementById("modal-registro-venta");
