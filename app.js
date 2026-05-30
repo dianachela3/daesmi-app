@@ -51,22 +51,26 @@ const viewBalance = document.getElementById("view-balance");
 const viewAjustes = document.getElementById("view-ajustes");
 
 // Escuchas de Navegación Inferior
-navInventario.addEventListener("click", () => mostrarVista(viewInventario, navInventario));
-navBalance.addEventListener("click", () => {
+if (navInventario) navInventario.addEventListener("click", () => mostrarVista(viewInventario, navInventario));
+if (navBalance) navBalance.addEventListener("click", () => {
     if (isAdmin) mostrarVista(viewBalance, navBalance);
 });
-navAjustes.addEventListener("click", () => {
+if (navAjustes) navAjustes.addEventListener("click", () => {
     if (isAdmin) mostrarVista(viewAjustes, navAjustes);
 });
 
 // Función para alternar vistas visibles en la interfaz monopágina
 function mostrarVista(vistaObjetivo, botonActivo) {
-    [viewCatalogo, viewInventario, viewBalance, viewAjustes].forEach(v => v.classList.add("hidden"));
-    vistaObjetivo.classList.remove("hidden");
+    [viewCatalogo, viewInventario, viewBalance, viewAjustes].forEach(v => {
+        if (v) v.classList.add("hidden");
+    });
+    if (vistaObjetivo) vistaObjetivo.classList.remove("hidden");
 
     [navInventario, navBalance, navAjustes].forEach(btn => {
-        btn.classList.remove("text-purple-900", "scale-110");
-        btn.classList.add("text-slate-400");
+        if (btn) {
+            btn.classList.remove("text-purple-900", "scale-110");
+            btn.classList.add("text-slate-400");
+        }
     });
 
     if (botonActivo) {
@@ -111,7 +115,6 @@ function iniciarEscuchasPublicas() {
 }
 
 function iniciarEscuchasPrivadasAdmin() {
-    // Apagar escuchas previas si existen para no duplicar flujos de red
     if (desuscribirTransacciones) desuscribirTransacciones();
     if (desuscribirCaja) desuscribirCaja();
 
@@ -147,19 +150,20 @@ function monitorearSesion() {
 
         if (user) {
             isAdmin = true;
-            txtEstado.textContent = "Admin";
-            btnEstado.classList.replace("bg-purple-100", "bg-emerald-100");
-            btnEstado.classList.replace("text-purple-800", "text-emerald-800");
-            
-            // Cuando inicias sesión con éxito, se activan los flujos de administración
+            if (txtEstado) txtEstado.textContent = "Admin";
+            if (btnEstado) {
+                btnEstado.classList.replace("bg-purple-100", "bg-emerald-100");
+                btnEstado.classList.replace("text-purple-800", "text-emerald-800");
+            }
             iniciarEscuchasPrivadasAdmin();
         } else {
             isAdmin = false;
-            txtEstado.textContent = "Login";
-            btnEstado.classList.replace("bg-emerald-100", "bg-purple-100");
-            btnEstado.classList.replace("text-emerald-800", "text-purple-800");
+            if (txtEstado) txtEstado.textContent = "Login";
+            if (btnEstado) {
+                btnEstado.classList.replace("bg-emerald-100", "bg-purple-100");
+                btnEstado.classList.replace("text-emerald-800", "text-purple-800");
+            }
 
-            // Al cerrar sesión o entrar como cliente común, cancelamos las escuchas privadas de inmediato
             if (desuscribirTransacciones) { desuscribirTransacciones(); desuscribirTransacciones = null; }
             if (desuscribirCaja) { desuscribirCaja(); desuscribirCaja = null; }
 
@@ -178,6 +182,7 @@ function monitorearSesion() {
 // ==========================================
 
 function renderizarCatalogoYAlertas() {
+    if (!contenedorCatalogo) return;
     contenedorCatalogo.innerHTML = "";
 
     // 1. COMPONENTE: SECCIÓN HIGHLIGHT / TOP 3 MÁS AMADOS
@@ -325,7 +330,7 @@ function renderizarCatalogoYAlertas() {
         `;
     }
 
-    lucide.createIcons();
+    if (window.lucide) window.lucide.createIcons();
 }
 
 // ==========================================
@@ -333,6 +338,7 @@ function renderizarCatalogoYAlertas() {
 // ==========================================
 
 function renderizarMenuCategorias() {
+    if (!contenedorCategorias) return;
     const setCategorias = new Set(["TODOS"]);
     listaProductosGlobal.forEach(p => {
         if (p.categoria) setCategorias.add(p.categoria.trim().toUpperCase());
@@ -359,10 +365,12 @@ function renderizarMenuCategorias() {
 }
 
 // Escucha del Buscador en tiempo real
-buscadorInput.addEventListener("input", (e) => {
-    terminoBusqueda = e.target.value.toLowerCase().trim();
-    renderizarCatalogoYAlertas();
-});
+if (buscadorInput) {
+    buscadorInput.addEventListener("input", (e) => {
+        terminoBusqueda = e.target.value.toLowerCase().trim();
+        renderizarCatalogoYAlertas();
+    });
+}
 
 // ==========================================
 // INTERFACES DEL PANEL DE ADMINISTRACIÓN (INVENTARIO)
@@ -438,7 +446,6 @@ function renderizarBalanceAdmin() {
     let totalInversionEnBodega = 0;
     let rentabilidadBrutaTeorica = 0;
 
-    // Calcular costos actuales invertidos en bodega física
     listaProductosGlobal.forEach(p => {
         const stk = parseInt(p.stock) || 0;
         const cst = parseFloat(p.costo) || 0;
@@ -451,7 +458,6 @@ function renderizarBalanceAdmin() {
         totalInversionEnBodega += (stk * cst);
     });
 
-    // Procesar historial transaccional real para la caja y rentabilidades
     listaTransaccionesGlobal.forEach(t => {
         const totalVenta = parseFloat(t.total) || 0;
         const costoVenta = parseFloat(t.costoTotalCalculado) || 0;
@@ -460,22 +466,25 @@ function renderizarBalanceAdmin() {
         rentabilidadBrutaTeorica += (totalVenta - costoVenta);
     });
 
-    // Fórmulas matemáticas de caja fuerte DAESMI
     const efectivoTeoricoEnCaja = capitalBaseGlobal + totalVentasContadas - retirosAcumulados;
     const utilidadesNetasActuales = rentabilidadBrutaTeorica - retirosAcumulados;
 
-    // Inyección de valores calculados en las tarjetas del DOM
-    document.getElementById("kpi-efectivo-caja").textContent = `$${efectivoTeoricoEnCaja.toLocaleString()} COP`;
-    document.getElementById("kpi-ventas-totales").textContent = `$${totalVentasContadas.toLocaleString()} COP`;
-    document.getElementById("kpi-ganancias-netas").textContent = `$${utilidadesNetasActuales.toLocaleString()} COP`;
-    document.getElementById("kpi-inversion-bodega").textContent = `$${totalInversionEnBodega.toLocaleString()} COP`;
+    const kpiCaja = document.getElementById("kpi-efectivo-caja");
+    const kpiVentas = document.getElementById("kpi-ventas-totales");
+    const kpiGanancias = document.getElementById("kpi-ganancias-netas");
+    const kpiBodega = document.getElementById("kpi-inversion-bodega");
+
+    if (kpiCaja) kpiCaja.textContent = `$${efectivoTeoricoEnCaja.toLocaleString()} COP`;
+    if (kpiVentas) kpiVentas.textContent = `$${totalVentasContadas.toLocaleString()} COP`;
+    if (kpiBodega) kpiBodega.textContent = `$${totalInversionEnBodega.toLocaleString()} COP`;
     
-    // Indicador dinámico de control de salud financiera
-    const kpiSalud = document.getElementById("kpi-ganancias-netas");
-    if (utilidadesNetasActuales < 0) {
-        kpiSalud.className = "text-xl font-black text-rose-600";
-    } else {
-        kpiSalud.className = "text-xl font-black text-purple-950";
+    if (kpiGanancias) {
+        kpiGanancias.textContent = `$${utilidadesNetasActuales.toLocaleString()} COP`;
+        if (utilidadesNetasActuales < 0) {
+            kpiGanancias.className = "text-xl font-black text-rose-600";
+        } else {
+            kpiGanancias.className = "text-xl font-black text-purple-950";
+        }
     }
 }
 
@@ -591,6 +600,7 @@ function renderizarCarritoInterfaz() {
     const countBurbuja = document.getElementById("carrito-count-burbuja");
     const labelTotal = document.getElementById("carrito-total-monto");
 
+    if (!contenedor) return;
     contenedor.innerHTML = "";
     let totalMonto = 0;
     let totalItemsUnidades = 0;
@@ -619,17 +629,19 @@ function renderizarCarritoInterfaz() {
         contenedor.appendChild(div);
     });
 
-    countBurbuja.textContent = totalItemsUnidades;
-    labelTotal.textContent = `$${totalMonto.toLocaleString()}`;
+    if (countBurbuja) countBurbuja.textContent = totalItemsUnidades;
+    if (labelTotal) labelTotal.textContent = `$${totalMonto.toLocaleString()}`;
 
     const widget = document.getElementById("carrito-widget-flotante");
-    if (totalItemsUnidades > 0) {
-        widget.classList.replace("translate-y-32", "translate-y-0");
-        widget.classList.replace("opacity-0", "opacity-100");
-    } else {
-        widget.classList.replace("translate-y-0", "translate-y-32");
-        widget.classList.replace("opacity-100", "opacity-0");
-        window.cerrarModalCarrito();
+    if (widget) {
+        if (totalItemsUnidades > 0) {
+            widget.classList.replace("translate-y-32", "translate-y-0");
+            widget.classList.replace("opacity-0", "opacity-100");
+        } else {
+            widget.classList.replace("translate-y-0", "translate-y-32");
+            widget.classList.replace("opacity-100", "opacity-0");
+            window.cerrarModalCarrito();
+        }
     }
 }
 
@@ -648,11 +660,13 @@ window.eliminarItemCarrito = function(index) {
 
 window.abrirModalCarrito = function() {
     if (carritoGlobal.length === 0) return;
-    document.getElementById("modal-carrito").classList.replace("hidden", "flex");
+    const m = document.getElementById("modal-carrito");
+    if (m) m.classList.replace("hidden", "flex");
 };
 
 window.cerrarModalCarrito = function() {
-    document.getElementById("modal-carrito").classList.replace("flex", "hidden");
+    const m = document.getElementById("modal-carrito");
+    if (m) m.classList.replace("flex", "hidden");
 };
 
 // ==========================================
@@ -662,11 +676,11 @@ window.cerrarModalCarrito = function() {
 window.procesarDespachoVenta = async function() {
     if (carritoGlobal.length === 0) return;
 
-    const metodoPago = document.getElementById("carrito-metodo-pago").value;
+    const selectMetodo = document.getElementById("carrito-metodo-pago");
+    const metodoPago = selectMetodo ? selectMetodo.value : "efectivo";
     let totalFacturado = 0;
     let costoTotalCalculado = 0;
 
-    // Verificar stock físico de forma restrictiva antes de alterar la nube
     for (const item of carritoGlobal) {
         totalFacturado += (item.precio * item.cantidad);
         costoTotalCalculado += (item.costo * item.cantidad);
@@ -685,7 +699,6 @@ window.procesarDespachoVenta = async function() {
     }
 
     try {
-        // 1. Guardar la venta en la colección transaccional
         await addDoc(collection(db, "transacciones"), {
             items: carritoGlobal.map(it => ({
                 id: it.id,
@@ -702,15 +715,12 @@ window.procesarDespachoVenta = async function() {
             fecha: new Date().toISOString()
         });
 
-        // 2. Descontar las unidades de stock físico correspondientes en Firebase
         for (const item of carritoGlobal) {
             if (item.esCombo) {
-                // Descontar stock del combo macro
                 const comboReal = listaCombosGlobal.find(c => c.id === item.id);
                 const nuevoStockCombo = Math.max(0, parseInt(comboReal.stock) - item.cantidad);
                 await updateDoc(doc(db, "combos", item.id), { stock: nuevoStockCombo });
 
-                // Descontar opcionalmente cada producto interno que compone el combo
                 if (item.productosVinculados && item.productosVinculados.length > 0) {
                     for (const pVinculado of item.productosVinculados) {
                         const prodInterno = listaProductosGlobal.find(p => p.id === pVinculado.id);
@@ -721,7 +731,6 @@ window.procesarDespachoVenta = async function() {
                     }
                 }
             } else {
-                // Descontar stock de producto individual tradicional
                 const prodReal = listaProductosGlobal.find(p => p.id === item.id);
                 const nuevoStock = Math.max(0, parseInt(prodReal.stock) - item.cantidad);
                 const nuevasVentasCount = (parseInt(prodReal.ventasCount) || 0) + item.cantidad;
@@ -748,7 +757,6 @@ window.procesarDespachoVenta = async function() {
 // CONTROL DE FORMULARIOS Y MODALES OPERATIVOS (CRUD ADMIN)
 // ==========================================
 
-// Modales de Productos Simples
 window.abrirModalNuevoProducto = function() {
     if (!isAdmin) return;
     document.getElementById("form-producto-id").value = "";
@@ -762,7 +770,8 @@ window.abrirModalNuevoProducto = function() {
     document.getElementById("form-producto-desc").value = "";
     document.getElementById("form-producto-variacion-titulo").value = "";
     document.getElementById("form-producto-variacion-opciones").value = "";
-    document.getElementById("modal-producto").classList.replace("hidden", "flex");
+    const m = document.getElementById("modal-producto");
+    if (m) m.classList.replace("hidden", "flex");
 };
 
 window.abrirEditarProducto = function(id) {
@@ -788,11 +797,13 @@ window.abrirEditarProducto = function(id) {
         document.getElementById("form-producto-variacion-opciones").value = "";
     }
 
-    document.getElementById("modal-producto").classList.replace("hidden", "flex");
+    const m = document.getElementById("modal-producto");
+    if (m) m.classList.replace("hidden", "flex");
 };
 
 window.cerrarModalProducto = function() {
-    document.getElementById("modal-producto").classList.replace("flex", "hidden");
+    const m = document.getElementById("modal-producto");
+    if (m) m.classList.replace("flex", "hidden");
 };
 
 window.guardarProductoNube = async function() {
@@ -845,7 +856,6 @@ window.eliminarProductoNube = async function(id) {
     }
 };
 
-// Modales de Combos Promocionales
 window.abrirModalNuevoCombo = function() {
     if (!isAdmin) return;
     document.getElementById("form-combo-id").value = "";
@@ -857,7 +867,8 @@ window.abrirModalNuevoCombo = function() {
     document.getElementById("form-combo-desc").value = "";
     
     actualizarSelectVinculacionCombos();
-    document.getElementById("modal-combo").classList.replace("hidden", "flex");
+    const m = document.getElementById("modal-combo");
+    if (m) m.classList.replace("hidden", "flex");
 };
 
 window.abrirEditarCombo = function(id) {
@@ -883,11 +894,13 @@ window.abrirEditarCombo = function(id) {
         });
     }
 
-    document.getElementById("modal-combo").classList.replace("hidden", "flex");
+    const m = document.getElementById("modal-combo");
+    if (m) m.classList.replace("hidden", "flex");
 };
 
 window.cerrarModalCombo = function() {
-    document.getElementById("modal-combo").classList.replace("flex", "hidden");
+    const m = document.getElementById("modal-combo");
+    if (m) m.classList.replace("flex", "hidden");
 };
 
 window.guardarComboNube = async function() {
@@ -939,7 +952,6 @@ window.eliminarComboNube = async function(id) {
     }
 };
 
-// Reversar Transacciones/Ventas
 window.eliminarVentaNube = async function(id) {
     if (!isAdmin) return;
     if (!confirm("⚠️ ¿Estás segura de reversar esta transacción? El stock devuelto se sumará de nuevo al inventario.")) return;
@@ -979,22 +991,25 @@ window.eliminarVentaNube = async function(id) {
 // CONTROLES DE SEGURIDAD, ACCESO Y FINANZAS
 // ==========================================
 
-// Modales y ejecución de Login/Logout
 const btnEstadoSesion = document.getElementById("btn-estado-sesion");
-btnEstadoSesion.addEventListener("click", () => {
-    if (isAdmin) {
-        if (confirm("¿Cerrar sesión administrativa actual?")) {
-            signOut(auth);
+if (btnEstadoSesion) {
+    btnEstadoSesion.addEventListener("click", () => {
+        if (isAdmin) {
+            if (confirm("¿Cerrar sesión administrativa actual?")) {
+                signOut(auth);
+            }
+        } else {
+            document.getElementById("login-email").value = "";
+            document.getElementById("login-password").value = "";
+            const m = document.getElementById("modal-login");
+            if (m) m.classList.replace("hidden", "flex");
         }
-    } else {
-        document.getElementById("login-email").value = "";
-        document.getElementById("login-password").value = "";
-        document.getElementById("modal-login").classList.replace("hidden", "flex");
-    }
-});
+    });
+}
 
 window.cerrarModalLogin = function() {
-    document.getElementById("modal-login").classList.replace("flex", "hidden");
+    const m = document.getElementById("modal-login");
+    if (m) m.classList.replace("flex", "hidden");
 };
 
 window.ejecutarLoginAdmin = async function() {
@@ -1009,7 +1024,6 @@ window.ejecutarLoginAdmin = async function() {
     }
 };
 
-// Configuración de Capital Base Operativo
 window.guardarCapitalBaseCaja = async function() {
     if (!isAdmin) return;
     const input = document.getElementById("ajuste-capital-base");
@@ -1026,18 +1040,18 @@ window.guardarCapitalBaseCaja = async function() {
     }
 };
 
-// Control de ventanas emergentes para Retiro de Utilidades
 window.abrirModalRetiro = function() {
     if (!isAdmin) return alert("Solo el administrador puede retirar dinero de las utilidades.");
     document.getElementById("retiro-monto").value = "";
-    document.getElementById("modal-retiro-ganancias").classList.replace("hidden", "flex");
+    const m = document.getElementById("modal-retiro-ganancias");
+    if (m) m.classList.replace("hidden", "flex");
 };
 
 window.cerrarModalRetiro = function() {
-    document.getElementById("modal-retiro-ganancias").classList.replace("flex", "hidden");
+    const m = document.getElementById("modal-retiro-ganancias");
+    if (m) m.classList.replace("flex", "hidden");
 };
 
-// Procesar y guardar el retiro acumulado en la nube
 window.ejecutarRetiroGanancias = async function() {
     if (!isAdmin) return;
     const montoInput = document.getElementById("retiro-monto");
@@ -1045,7 +1059,6 @@ window.ejecutarRetiroGanancias = async function() {
 
     if (montoARetirar <= 0) return alert("Ingresa un monto válido mayor a cero.");
 
-    // Sumamos el nuevo retiro al acumulado histórico en Firebase
     const nuevoTotalRetiros = retirosAcumulados + montoARetirar;
 
     try {
@@ -1066,9 +1079,14 @@ window.detonarMarketingProducto = function(id) {
     const p = listaProductosGlobal.find(item => item.id === id);
     if (!p) return;
 
-    document.getElementById("mkt-preview-titulo").textContent = p.nombre;
-    document.getElementById("mkt-preview-desc").textContent = p.descripcion || "¡Disponible en stock!";
-    document.getElementById("mkt-preview-precio").textContent = `$${p.precio.toLocaleString()} COP`;
+    const previewT = document.getElementById("mkt-preview-titulo");
+    const previewD = document.getElementById("mkt-preview-desc");
+    const previewP = document.getElementById("mkt-preview-precio");
+    const txtCopy = document.getElementById("mkt-texto-copy");
+
+    if (previewT) previewT.textContent = p.nombre;
+    if (previewD) previewD.textContent = p.descripcion || "¡Disponible en stock!";
+    if (previewP) previewP.textContent = `$${p.precio.toLocaleString()} COP`;
 
     let copyRecomendado = `✨ *${p.nombre.toUpperCase()}* ✨\n\n`;
     if (p.descripcion) copyRecomendado += `${p.descripcion}\n\n`;
@@ -1080,19 +1098,27 @@ window.detonarMarketingProducto = function(id) {
     copyRecomendado += `💰 *Precio:* $${p.precio.toLocaleString()} COP\n`;
     copyRecomendado += `📍 Entregas seguras en Medellín. ¡Pide el tuyo antes de que se agote! 🛍️✨`;
 
-    document.getElementById("mkt-texto-copy").value = copyRecomendado;
-    document.getElementById("modal-marketing").classList.replace("hidden", "flex");
+    if (txtCopy) txtCopy.value = copyRecomendado;
+    
+    const m = document.getElementById("modal-marketing");
+    if (m) m.classList.replace("hidden", "flex");
 };
 
-document.getElementById("btn-copiar-copy").addEventListener("click", () => {
-    const cajaTexto = document.getElementById("mkt-texto-copy");
-    cajaTexto.select();
-    cajaTexto.setSelectionRange(0, 99999); // Soporte móvil
+// Validación segura para el botón de copiado
+const btnCopiarCopy = document.getElementById("btn-copiar-copy");
+if (btnCopiarCopy) {
+    btnCopiarCopy.addEventListener("click", () => {
+        const cajaTexto = document.getElementById("mkt-texto-copy");
+        if (!cajaTexto) return;
+        
+        cajaTexto.select();
+        cajaTexto.setSelectionRange(0, 99999);
 
-    navigator.clipboard.writeText(cajaTexto.value)
-        .then(() => alert("📋 ¡Texto publicitario copiado al portapapeles! Listo para pegar en WhatsApp o Instagram."))
-        .catch(() => alert("No se otorgaron permisos de portapapeles en el navegador. Copia el recuadro manualmente."));
-});
+        navigator.clipboard.writeText(cajaTexto.value)
+            .then(() => alert("📋 ¡Texto publicitario copiado al portapapeles! Listo para pegar en WhatsApp o Instagram."))
+            .catch(() => alert("No se otorgaron permisos de portapapeles en el navegador. Copia el recuadro manualmente."));
+    });
+}
 
 // ==========================================
 // INICIALIZACIÓN DE CARGA PREVIA DEL CORE
