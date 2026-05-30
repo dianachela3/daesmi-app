@@ -408,24 +408,53 @@ function procesarYRenderizarBalance() {
     calcularTopProductos(transaccionesFiltradas);
 }
 
-function calcularTopProductos(listaTransacciones) {
-    const conteo = {};
-    listaTransacciones.forEach(t => { conteo[t.articulo] = (conteo[t.articulo] || 0) + 1; });
-    const ordenados = Object.keys(conteo).map(name => ({ nombre: name, ventas: conteo[name] })).sort((a, b) => b.ventas - a.ventas).slice(0, 3);
+function calcularTopProductos(transaccionesParaTop) {
     const contenedorTop = document.getElementById("lista-top-productos");
-    if(!contenedorTop) return;
+    if (!contenedorTop) return;
+    
     contenedorTop.innerHTML = "";
 
-    if(ordenados.length === 0) {
-        contenedorTop.innerHTML = `<p class="text-xs text-slate-400 italic">Sin movimientos en este rango.</p>`;
+    // 1. Contar cuántas unidades se han vendido de cada artículo
+    const conteo = {};
+    transaccionesParaTop.forEach(t => {
+        // Solo contamos transacciones de ventas reales y que estén pagadas o entregadas
+        if (t.articulo && t.estado !== "pendiente") { 
+            conteo[t.articulo] = (conteo[t.articulo] || 0) + 1;
+        }
+    });
+
+    // 2. Convertir a un arreglo y ordenarlo de mayor a menor
+    const topOrdenado = Object.keys(conteo).map(nombre => {
+        return { nombre: nombre, cantidad: conteo[nombre] };
+    }).sort((a, b) => b.cantidad - a.cantidad);
+
+    // 🔥 CAMBIO CLAVE: Tomar únicamente los 3 primeros productos
+    const top3 = topOrdenado.slice(0, 3);
+
+    // 3. Si no hay ventas registradas aún, mostrar un mensaje bonito de invitación
+    if (top3.length === 0) {
+        contenedorTop.innerHTML = `<p class="text-[11px] text-slate-400 text-center py-1">¡Explora nuestro catálogo y llévate tus favoritos!</p>`;
         return;
     }
-    ordenados.forEach((item, index) => {
-        contenedorTop.innerHTML += `
-            <div class="flex justify-between items-center text-xs py-1 border-b border-slate-50">
-                <span class="text-slate-600 font-medium">${index + 1}. ${item.nombre}</span>
-                <span class="bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full text-[10px] font-black">${item.ventas} uds</span>
-            </div> `;
+
+    // 4. Renderizar el Top 3 con un diseño elegante para los clientes
+    top3.forEach((prod, indice) => {
+        // Medallas para el 1°, 2° y 3° lugar
+        const medallas = ["🥇", "🥈", "🥉"];
+        const medalla = medallas[indice] || "✨";
+
+        const div = document.createElement("div");
+        div.className = "flex justify-between items-center bg-slate-50 p-2 rounded-xl border border-slate-100 text-xs";
+        div.innerHTML = `
+            <div class="flex items-center gap-2 min-w-0">
+                <span class="text-sm flex-shrink-0">${medalla}</span>
+                <p class="font-bold text-slate-700 truncate">${prod.nombre}</p>
+            </div>
+            <span class="text-[10px] font-extrabold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full flex-shrink-0">
+                ${prod.cantidad} unds
+            </span>
+        `;
+        contenedorTop.appendChild(div);
     });
 }
 
