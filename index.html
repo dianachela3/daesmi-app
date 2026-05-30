@@ -78,22 +78,25 @@
                     </button>
                 </div>
 
-                <div class="grid grid-cols-3 gap-1.5 text-center">
-                    <div class="bg-slate-800/60 p-2 rounded-xl border border-slate-700/40">
-                        <p class="text-[8px] uppercase font-bold text-slate-400">Capital Base</p>
-                        <span id="caja-capital-base" class="text-xs font-black text-purple-400">$0</span>
-                        <button type="button" id="btn-trigger-capital-manual" class="block w-full text-[7px] text-slate-500 underline hover:text-slate-300 mt-0.5 cursor-pointer">Definir</button>
+                <div class="grid grid-cols-3 gap-2 text-center mt-2">
+                    <div class="bg-white/10 p-2.5 rounded-xl border border-white/10 backdrop-blur-xs flex flex-col justify-between">
+                        <p class="text-[9px] uppercase font-black tracking-wider text-slate-300">Capital Base</p>
+                        <span id="caja-capital-base" class="text-sm font-black text-purple-300 block my-1">$0</span>
+                        <button type="button" onclick="window.ajustarCapitalBaseManual()" class="block w-full text-[8px] font-bold text-purple-200 underline hover:text-white transition-colors cursor-pointer">
+                            Definir
+                        </button>
                     </div>
-                    <div class="bg-slate-800/60 p-2 rounded-xl border border-slate-700/40">
-                        <p class="text-[8px] uppercase font-bold text-slate-400">Utilidad Libre</p>
-                        <span id="caja-ganancia-libre" class="text-xs font-black text-emerald-400">$0</span>
+                
+                    <div class="bg-white/10 p-2.5 rounded-xl border border-white/10 backdrop-blur-xs flex flex-col justify-center">
+                        <p class="text-[9px] uppercase font-black tracking-wider text-slate-300">Utilidad Libre</p>
+                        <span id="caja-ganancia-libre" class="text-sm font-black text-emerald-400 block mt-1">$0</span>
                     </div>
-                    <div class="bg-purple-950/40 p-2 rounded-xl border border-purple-500/20">
-                        <p class="text-[8px] uppercase font-bold text-purple-300">Efectivo Total</p>
-                        <span id="caja-efectivo-total" class="text-xs font-black text-amber-400">$0</span>
+                
+                    <div class="bg-purple-950/50 p-2.5 rounded-xl border border-purple-500/30 flex flex-col justify-center">
+                        <p class="text-[9px] uppercase font-black tracking-wider text-purple-200">Efectivo Total</p>
+                        <span id="caja-efectivo-total" class="text-sm font-black text-amber-400 block mt-1">$0</span>
                     </div>
                 </div>
-            </div>
 
             <div class="flex gap-2 pt-1">
                 <button id="filtro-hoy" class="flex-1 text-center py-2 bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer">Hoy</button>
