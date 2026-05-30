@@ -487,3 +487,69 @@ function renderizarCatalogoTarjetas() {
         window.lucide.createIcons();
     }
 }
+
+// ========================================================
+// CONTROL DE VENTANAS EMERGENTES (MODALES ADICIONALES)
+// ========================================================
+
+// 1. Control para Registro de Ventas
+window.abrirModalVenta = function() {
+    if (!isAdmin) return alert("Acceso denegado: Inicia sesión como administrador.");
+    
+    // Si tienes campos de formulario con estos IDs, los limpia al abrir
+    const artInput = document.getElementById("venta-articulo");
+    const recInput = document.getElementById("venta-recibido");
+    const cosInput = document.getElementById("venta-costo");
+    
+    if(artInput) artInput.value = "";
+    if(recInput) recInput.value = "";
+    if(cosInput) cosInput.value = "";
+    
+    const modal = document.getElementById("modal-registro-venta");
+    if(modal) {
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+    } else {
+        // Alerta de respaldo si el modal aún no se ha creado en el HTML
+        alert("Formulario de venta en desarrollo o ID 'modal-registro-venta' no encontrado.");
+    }
+};
+
+window.cerrarModalVenta = function() {
+    const modal = document.getElementById("modal-registro-venta");
+    if(modal) {
+        modal.classList.remove("flex");
+        modal.classList.add("hidden");
+    }
+};
+
+// 2. Control para Armado de Combos / Kits
+window.abrirModalCombo = function() {
+    if (!isAdmin) return alert("Acceso denegado: Inicia sesión como administrador.");
+    
+    // Si tienes campos de formulario con estos IDs, los limpia al abrir
+    const nomInput = document.getElementById("combo-nombre");
+    const pcoInput = document.getElementById("combo-precio");
+    const ccoInput = document.getElementById("combo-costo");
+    
+    if(nomInput) nomInput.value = "";
+    if(pcoInput) pcoInput.value = "";
+    if(ccoInput) ccoInput.value = "";
+    
+    const modal = document.getElementById("modal-registro-combo");
+    if(modal) {
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+    } else {
+        // Alerta de respaldo si el modal aún no se ha creado en el HTML
+        alert("Formulario de combos en desarrollo o ID 'modal-registro-combo' no encontrado.");
+    }
+};
+
+window.cerrarModalCombo = function() {
+    const modal = document.getElementById("modal-registro-combo");
+    if(modal) {
+        modal.classList.remove("flex");
+        modal.classList.add("hidden");
+    }
+};
