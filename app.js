@@ -196,6 +196,9 @@ function desactivarEscuchasFinancierasPrivadas() {
 // ========================================================
 // 3. NAVEGACIÓN Y EVENTOS CENTRALIZADOS
 // ========================================================
+// ========================================================
+// 3. NAVEGACIÓN Y EVENTOS CENTRALIZADOS
+// ========================================================
 function inicializarNavegacionYModales() {
     const btnBalance = document.getElementById("nav-balance");
     const btnInventario = document.getElementById("nav-inventario");
@@ -203,17 +206,25 @@ function inicializarNavegacionYModales() {
     const botones = [btnBalance, btnInventario, btnAjustes];
 
     window.cambiarVistaEfectiva = function(vistaActivaId, bActivo) {
+        // Ocultar todas las secciones de contenido
         document.querySelectorAll("section").forEach(s => s.classList.add("hidden"));
+        
+        // Mostrar solo la sección seleccionada
         const targetSection = document.getElementById(vistaActivaId);
         if (targetSection) targetSection.classList.remove("hidden");
         
+        // Manejar los estilos visuales de los botones de navegación SIN alterar su visibilidad (hidden)
         botones.forEach(b => { 
-            if(b) {
-                b.className = "flex flex-col items-center gap-1 btn-nav-inactive transition-colors cursor-pointer";
+            if (b) {
+                // Removemos las clases de estado activo/inactivo previas
+                b.classList.remove("btn-nav-active", "text-purple-800", "font-bold");
+                b.classList.add("btn-nav-inactive", "text-slate-400", "font-medium");
             }
         });
-        if(bActivo) { 
-            bActivo.className = "flex flex-col items-center gap-1 btn-nav-active transition-colors cursor-pointer";
+        
+        if (bActivo) { 
+            bActivo.classList.remove("btn-nav-inactive", "text-slate-400", "font-medium");
+            bActivo.classList.add("btn-nav-active", "text-purple-800", "font-bold");
         }
     };
 
