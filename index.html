@@ -179,22 +179,28 @@
         </section>
     </main>
 
-    <nav class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 p-3 shadow-lg z-40">
-        <div class="max-w-md mx-auto flex justify-around items-center">
-            <button id="nav-balance" class="hidden flex flex-col items-center gap-1 text-slate-400 font-medium transition-colors cursor-pointer">
-                <i data-lucide="pie-chart" class="w-5 h-5"></i>
-                <span class="text-[10px]">Caja</span>
-            </button>
-            <button id="nav-inventario" class="flex flex-col items-center gap-1 text-purple-800 font-bold transition-colors cursor-pointer">
-                <i data-lucide="layers" class="w-5 h-5"></i>
-                <span class="text-[10px]">Catálogo</span>
-            </button>
-            <button id="nav-ajustes" class="hidden flex flex-col items-center gap-1 text-slate-400 font-medium transition-colors cursor-pointer">
-                <i data-lucide="sliders" class="w-5 h-5"></i>
-                <span class="text-[10px]">Ajustes</span>
-            </button>
-        </div>
-    </nav>
+    <!-- NAVEGACIÓN INFERIOR -->
+<nav class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 p-3 shadow-lg z-40">
+    <div class="max-w-md mx-auto flex justify-around items-center">
+        <!-- AGREGAR 'hidden' AQUÍ -->
+        <button id="nav-balance" class="hidden flex flex-col items-center gap-1 text-slate-400 font-medium transition-colors cursor-pointer">
+            <i data-lucide="pie-chart" class="w-5 h-5"></i>
+            <span class="text-[10px]">Caja</span>
+        </button>
+        
+        <!-- El catálogo siempre visible -->
+        <button id="nav-inventario" class="flex flex-col items-center gap-1 text-purple-800 font-bold transition-colors cursor-pointer">
+            <i data-lucide="layers" class="w-5 h-5"></i>
+            <span class="text-[10px]">Catálogo</span>
+        </button>
+        
+        <!-- AGREGAR 'hidden' AQUÍ -->
+        <button id="nav-ajustes" class="hidden flex flex-col items-center gap-1 text-slate-400 font-medium transition-colors cursor-pointer">
+            <i data-lucide="sliders" class="w-5 h-5"></i>
+            <span class="text-[10px]">Ajustes</span>
+        </button>
+    </div>
+</nav>
 
     <div id="modal-retiro-ganancias" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden justify-center items-center z-50 p-4">
         <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
