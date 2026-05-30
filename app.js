@@ -2,7 +2,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { 
     getFirestore, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy, deleteDoc, setDoc
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { \n    getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged 
+import { 
+    getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 // Configuración de Firebase
@@ -74,16 +75,16 @@ function mostrarVista(vistaObjetivo, botonActivo) {
     }
 }
 
-// Controladores para apagar los flujos protegidos de Firebase
+// Variables para controlar y apagar las escuchas en tiempo real de Firebase
 let desuscribirTransacciones = null;
 let desuscribirCaja = null;
 
 // ==========================================
-// ESCUCHAS DE FIREBASE (SIN CONFLICTO DE PERMISOS)
+// ESCUCHAS DE FIREBASE REESTRUCTURADAS
 // ==========================================
 
 function iniciarEscuchasPublicas() {
-    // Escucha de Productos (Público)
+    // Escucha de Productos: Abierta al público
     onSnapshot(query(collection(db, "productos"), orderBy("nombre", "asc")), (snapshot) => {
         listaProductosGlobal = [];
         snapshot.forEach(doc => {
@@ -96,7 +97,7 @@ function iniciarEscuchasPublicas() {
         console.error("Error en productos públicos:", error);
     });
 
-    // Escucha de Combos (Público)
+    // Escucha de Combos: Abierta al público
     onSnapshot(collection(db, "combos"), (snapshot) => {
         listaCombosGlobal = [];
         snapshot.forEach(doc => {
@@ -110,11 +111,11 @@ function iniciarEscuchasPublicas() {
 }
 
 function iniciarEscuchasPrivadasAdmin() {
-    // Evitar acumulaciones duplicadas apagando flujos anteriores si existen
+    // Apagar escuchas previas si existen para no duplicar flujos de red
     if (desuscribirTransacciones) desuscribirTransacciones();
     if (desuscribirCaja) desuscribirCaja();
 
-    // Escucha de Transacciones (Protegida - Solo activa si eres Admin logueada)
+    // Escucha de Transacciones (Solo Admin logueado)
     desuscribirTransacciones = onSnapshot(query(collection(db, "transacciones"), orderBy("fecha", "desc")), (snapshot) => {
         listaTransaccionesGlobal = [];
         snapshot.forEach(doc => {
@@ -123,10 +124,10 @@ function iniciarEscuchasPrivadasAdmin() {
         renderizarBalanceAdmin();
         renderizarHistorialVentasAdmin();
     }, (error) => {
-        console.warn("Bloqueo preventivo de transacciones (requiere login):", error.message);
+        console.warn("Bloqueo de seguridad en transacciones:", error.message);
     });
 
-    // Escucha de Configuración de Caja (Protegida)
+    // Escucha de Caja Fuerte (Solo Admin logueado)
     desuscribirCaja = onSnapshot(doc(db, "configuracion", "caja_daesmi"), (snapshot) => {
         if (snapshot.exists()) {
             const data = snapshot.data();
@@ -135,7 +136,7 @@ function iniciarEscuchasPrivadasAdmin() {
             renderizarBalanceAdmin();
         }
     }, (error) => {
-        console.warn("Bloqueo preventivo de caja (requiere login):", error.message);
+        console.warn("Bloqueo de seguridad en caja fuerte:", error.message);
     });
 }
 
@@ -150,7 +151,7 @@ function monitorearSesion() {
             btnEstado.classList.replace("bg-purple-100", "bg-emerald-100");
             btnEstado.classList.replace("text-purple-800", "text-emerald-800");
             
-            // Si el admin está logueado, abrimos de forma segura las llaves contables
+            // Cuando inicias sesión con éxito, se activan los flujos de administración
             iniciarEscuchasPrivadasAdmin();
         } else {
             isAdmin = false;
@@ -158,7 +159,7 @@ function monitorearSesion() {
             btnEstado.classList.replace("bg-emerald-100", "bg-purple-100");
             btnEstado.classList.replace("text-emerald-800", "text-purple-800");
 
-            // Si se cierra sesión o entra un cliente, apagamos las escuchas privadas de inmediato
+            // Al cerrar sesión o entrar como cliente común, cancelamos las escuchas privadas de inmediato
             if (desuscribirTransacciones) { desuscribirTransacciones(); desuscribirTransacciones = null; }
             if (desuscribirCaja) { desuscribirCaja(); desuscribirCaja = null; }
 
@@ -166,7 +167,6 @@ function monitorearSesion() {
             capitalBaseGlobal = 0;
             retirosAcumulados = 0;
 
-            // Retornamos al flujo de cara al cliente por seguridad
             mostrarVista(viewCatalogo, null);
         }
         renderizarCatalogoYAlertas();
@@ -205,7 +205,7 @@ function renderizarCatalogoYAlertas() {
                         <p class="text-[11px] font-black text-purple-200">$${p.precio.toLocaleString()}</p>
                     </div>
                     <button type="button" onclick="window.agregarAlCarritoConVariacion('${p.id}', false)" class="bg-white text-purple-950 p-2 rounded-xl font-black text-xs cursor-pointer active:scale-95 transition-all shadow-xs shrink-0">
-                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <i data-lucide=\"plus\" class=\"w-4 h-4\"></i>
                     </button>
                 </div>
             `;
@@ -243,8 +243,8 @@ function renderizarCatalogoYAlertas() {
                         </div>
                         <div class="flex gap-1">
                             ${isAdmin ? `
-                                <button type="button" onclick="window.abrirEditarCombo('${c.id}')" class="bg-white/10 hover:bg-white/20 text-white p-1.5 rounded-xl text-xs font-bold cursor-pointer"><i data-lucide="edit" class="w-3.5 h-3.5"></i></button>
-                                <button type="button" onclick="window.eliminarComboNube('${c.id}')" class="bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 p-1.5 rounded-xl text-xs font-bold cursor-pointer"><i data-lucide="trash" class="w-3.5 h-3.5"></i></button>
+                                <button type="button" onclick="window.abrirEditarCombo('${c.id}')" class="bg-white/10 hover:bg-white/20 text-white p-1.5 rounded-xl text-xs font-bold cursor-pointer"><i data-lucide=\"edit\" class=\"w-3.5 h-3.5\"></i></button>
+                                <button type="button" onclick="window.eliminarComboNube('${c.id}')" class="bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 p-1.5 rounded-xl text-xs font-bold cursor-pointer"><i data-lucide=\"trash\" class=\"w-3.5 h-3.5\"></i></button>
                             ` : `
                                 <button type="button" ${enStockCombo ? `onclick="window.agregarAlCarritoConVariacion('${c.id}', true)"` : 'disabled'} class="${enStockCombo ? 'bg-pink-500 hover:bg-pink-600 text-white cursor-pointer active:scale-95' : 'bg-white/10 text-white/40 cursor-not-allowed'} px-3 py-1.5 rounded-xl font-black text-xs transition-all shadow-md flex items-center gap-1">
                                     <i data-lucide="${enStockCombo ? 'shopping-bag' : 'slash'}" class="w-3.5 h-3.5"></i> Lo quiero
@@ -298,15 +298,15 @@ function renderizarCatalogoYAlertas() {
                             </div>
                             <div class="flex gap-1">
                                 ${isAdmin ? `
-                                    <button type="button" onclick="window.abrirEditarProducto('${p.id}')" class="bg-slate-100 text-slate-700 p-1.5 rounded-xl text-xs font-bold cursor-pointer"><i data-lucide="edit" class="w-3.5 h-3.5"></i></button>
-                                    <button type="button" onclick="window.eliminarProductoNube('${p.id}')" class="bg-rose-50 text-rose-600 p-1.5 rounded-xl text-xs font-bold cursor-pointer"><i data-lucide="trash" class="w-3.5 h-3.5"></i></button>
+                                    <button type="button" onclick="window.abrirEditarProducto('${p.id}')" class="bg-slate-100 text-slate-700 p-1.5 rounded-xl text-xs font-bold cursor-pointer"><i data-lucide=\"edit\" class=\"w-3.5 h-3.5\"></i></button>
+                                    <button type="button" onclick="window.eliminarProductoNube('${p.id}')" class="bg-rose-50 text-rose-600 p-1.5 rounded-xl text-xs font-bold cursor-pointer"><i data-lucide=\"trash\" class=\"w-3.5 h-3.5\"></i></button>
                                 ` : `
                                     <button type="button" ${enStock ? `onclick="window.agregarAlCarritoConVariacion('${p.id}', false)"` : 'disabled'} class="${enStock ? 'bg-purple-900 text-white cursor-pointer active:scale-95' : 'bg-slate-200 text-slate-400 cursor-not-allowed'} p-1.5 rounded-xl font-bold transition-all shadow-xs">
                                         <i data-lucide="${enStock ? 'plus' : 'slash'}" class="w-4 h-4"></i>
                                     </button>
                                 `}
                                 ${isAdmin ? `
-                                    <button type="button" onclick="window.detonarMarketingProducto('${p.id}')" class="bg-purple-100 text-purple-800 p-1.5 rounded-xl text-xs font-bold cursor-pointer"><i data-lucide="megaphone" class="w-3.5 h-3.5"></i></button>
+                                    <button type="button" onclick="window.detonarMarketingProducto('${p.id}')" class="bg-purple-100 text-purple-800 p-1.5 rounded-xl text-xs font-bold cursor-pointer"><i data-lucide=\"megaphone\" class=\"w-3.5 h-3.5\"></i></button>
                                 ` : ''}
                             </div>
                         </div>
