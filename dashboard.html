@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAESMI - Panel de Control</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        #loader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; display: flex; justify-content: center;
+            align-items: center; z-index: 9999; font-family: sans-serif;
+        }
+    </style>
+</head>
+<body class="dashboard-body">
+
+    <div id="loader">
+        <p>Cargando DAESMI OS...</p>
+    </div>
+
+    <div class="dashboard-layout" id="app-content" style="display: none;">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <h1>DAESMI</h1>
+            </div>
+            <nav class="sidebar-menu">
+                <a href="dashboard.html" class="menu-item active">
+                    <span class="icon">📊</span> Finanzas
+                </a>
+                <a href="inventario.html" class="menu-item">
+                    <span class="icon">📦</span> Inventario
+                </a>
+                <a href="#" class="menu-item">
+                    <span class="icon">👥</span> Clientes
+                </a>
+            </nav>
+        </aside>
+
+        <div class="main-wrapper">
+            <header class="top-header">
+                <div class="user-profile">
+                    Bienvenido, <span id="sessionUser" class="username-badge">...</span>
+                </div>
+                <button class="btn-logout" onclick="cerrarSesionPlataforma()">
+                    ❌ Cerrar Sesión
+                </button>
+            </header>
+
+            <main class="content-body">
+                <div class="content-header">
+                    <h2>Resumen de Finanzas</h2>
+                    <p>Monitorea los ingresos, gastos y balance de DAESMI</p>
+                </div>
+
+                <section class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 25px;">
+                    <div class="metric-card" style="background: #fff; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                        <h3 style="font-size: 14px; color: var(--color-text-muted); margin-bottom: 8px;">Total Vendido</h3>
+                        <p class="amount" id="totalVendido" style="font-size: 24px; color: var(--color-text-main); font-weight: 700;">$0</p>
+                    </div>
+                    <div class="metric-card" style="background: #fff; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                        <h3 style="font-size: 14px; color: var(--color-text-muted); margin-bottom: 8px;">Total Costo (Propio)</h3>
+                        <p class="amount" id="totalCostoPropio" style="font-size: 24px; color: #6B7280; font-weight: 700;">$0</p>
+                    </div>
+                    <div class="metric-card" style="background: #fff; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                        <h3 style="font-size: 14px; color: var(--color-text-muted); margin-bottom: 8px;">Total Colaboración</h3>
+                        <p class="amount" id="totalColaboracion" style="font-size: 24px; color: #0284C7; font-weight: 700;">$0</p>
+                    </div>
+                    <div class="metric-card" style="background: #EEF2F6; padding: 20px; border-radius: var(--radius-md); border: 1px solid #DDD6FE;">
+                        <h3 style="font-size: 14px; color: var(--color-primary); margin-bottom: 8px; font-weight: 600;">Total Ganancias</h3>
+                        <p class="amount" id="totalGanancias" style="font-size: 24px; color: #7C3AED; font-weight: 800;">$0</p>
+                    </div>
+                </section>
+
+                <section class="recent-activity">
+                    <div class="card-header">
+                        <h3>Últimos Movimientos</h3>
+                        <button class="your-button-classes" id="btnRegistrarMovimiento" onclick="if(document.getElementById('modalTransaction')) document.getElementById('modalTransaction').hidden = false;">
+                            + Registrar Movimiento
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Concepto</th>
+                                    <th>Categoría</th>
+                                    <th>Monto</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transactionsTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <div id="modalTransaction" class="modal-overlay" hidden>
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3>Nuevo Registro Financiero</h3>
+                <button id="closeModal" class="btn-close">&times;</button>
+            </div>
+            <form id="transactionForm">
+                <div class="form-group">
+                    <label for="txType">Tipo de movimiento</label>
+                    <select id="txType" required onchange="ajustarFormularioPorTipo()">
+                        <option value="income">Ingreso (Venta +)</option>
+                        <option value="expense">Gasto / Salida (-)</option>
+                    </select>
+                </div>
+                <div id="seccionVentaProducto" class="form-group">
+                    <label for="txProductSelector">¿Qué vendiste? (Opcional - Descuenta Stock)</label>
+                    <input type="text" id="txProductSelector" list="finanzasDatalist" placeholder="Busca producto o combo...">
+                    <datalist id="finanzasDatalist"></datalist>
+                    <small style="color: var(--color-text-muted); font-size: 11px; display:block; margin-top:4px;">
+                        Selecciona un elemento de la lista para auto-completar el precio y descontar stock.
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label for="txConcept">Concepto / Descripción</label>
+                    <input type="text" id="txConcept" placeholder="Ej: Venta Kit Regalo Premium" required>
+                </div>
+                <div class="form-group-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="form-group">
+                        <label for="txAmount">Monto Cobrado ($)</label>
+                        <input type="number" id="txAmount" placeholder="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="txCategory">Categoría</label>
+                        <select id="txCategory">
+                            <option value="Ventas">Ventas</option>
+                            <option value="Servicios">Servicios</option>
+                            <option value="Inventario">Inventario</option>
+                            <option value="Gastos Fijos">Gastos Fijos</option>
+                            <option value="Otros">Otros</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn-submit">Guardar Registro</button>
+            </form>
+        </div>
+    </div>
+
+    <nav class="mobile-nav">
+        <a href="dashboard.html" class="mobile-nav-item active">
+            <span class="nav-icon">📊</span>
+            <span>Finanzas</span>
+        </a>
+        <a href="inventario.html" class="mobile-nav-item">
+            <span class="nav-icon">📦</span>
+            <span>Inventario</span>
+        </a>
+        <a href="#" class="mobile-nav-item">
+            <span class="nav-icon">👥</span>
+            <span>Clientes</span>
+        </a>
+    </nav>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAzW2B3R_TxTojtp8Vw0iS3C2APO2Pmi5A",
+            authDomain: "daesmi-8a93c.firebaseapp.com",
+            projectId: "daesmi-8a93c",
+            storageBucket: "daesmi-8a93c.firebasestorage.app",
+            messagingSenderId: "298101414150",
+            appId: "1:298101414150:web:294bcf5dd07f18a9cc6687"
+        };
+        firebase.initializeApp(firebaseConfig);
+        window.db = firebase.firestore();
+    </script>
+
+    <script src="js/auth.js"></script> 
+    <script src="js/app.js"></script>
+    <script>    
+        protegerPantalla(() => {
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('app-content').style.display = 'flex';
+            console.log("✅ DAESMI OS - Interfaz cargada y segura.");
+        });
+    </script>
+</body>
+</html>

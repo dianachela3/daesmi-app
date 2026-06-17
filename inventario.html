@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAESMI - Inventario</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        #loader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; display: flex; justify-content: center;
+            align-items: center; z-index: 9999; font-family: sans-serif;
+        }
+    </style>
+</head>
+<body class="dashboard-body">
+
+    <div id="loader">
+        <p>Cargando DAESMI OS...</p>
+    </div>
+
+    <div class="dashboard-layout" id="app-content" style="display: none;">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <h1>DAESMI</h1>
+            </div>
+            <nav class="sidebar-menu">
+                <a href="dashboard.html" class="menu-item">
+                    <span class="icon">📊</span> Finanzas
+                </a>
+                <a href="inventario.html" class="menu-item active">
+                    <span class="icon">📦</span> Inventario
+                </a>
+                <a href="#" class="menu-item">
+                    <span class="icon">👥</span> Clientes
+                </a>
+            </nav>
+        </aside>
+
+        <div class="main-wrapper">
+            <header class="top-header">
+                <div class="user-profile">
+                    Bienvenido, <span id="sessionUser" class="username-badge">...</span>
+                </div>
+                <button class="btn-logout" onclick="cerrarSesionPlataforma()">
+                    ❌ Cerrar Sesión
+                </button>
+            </header>
+
+            <main class="content-body">
+                <div class="content-header">
+                    <h2>Gestión de Inventario</h2>
+                    <p>Administra tus productos propios, colaboraciones y combos.</p>
+                </div>
+
+                <section class="metrics-grid">
+                    <div class="metric-card balance">
+                        <h3>Inversión Propia</h3>
+                        <p class="amount" id="invPropia">$0</p>
+                    </div>
+                    <div class="metric-card expense">
+                        <h3>Vendido Colaboraciones</h3>
+                        <p class="amount" id="invColab">$0</p>
+                        <small style="color: var(--color-text-muted); font-size: 11px;">Dinero a liquidar con aliados</small>
+                    </div>
+                </section>
+
+                <div class="inventory-tabs">
+                    <button class="tab-btn active" onclick="switchTab('productos')">📦 Productos</button>
+                    <button class="tab-btn" onclick="switchTab('combos')">✨ Crear Combos / Kits</button>
+                </div>
+
+                <section id="tab-productos" class="tab-content active-content">
+                    <div class="recent-activity">
+                        <div class="card-header">
+                            <h3>Mis Productos</h3>
+                            <button class="btn-primary-sm" onclick="openModal('modalProducto')">+ Nuevo Producto</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Título</th>
+                                        <th>Origen</th>
+                                        <th>Stock</th> <th>Costo</th>
+                                        <th>P. Venta</th>
+                                        <th>Desc.</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="productsTableBody">
+                                    <tr>
+                                        <td colspan="6" class="empty-state">No hay productos registrados.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="tab-combos" class="tab-content">
+                    <div class="recent-activity">
+                        <div class="card-header">
+                            <h3>Gestión de Combos</h3>
+                            <button class="btn-primary-sm" onclick="openModal('modalCombo')">+ Crear Nuevo Combo</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre del Combo</th>
+                                        <th>Productos Incluidos</th>
+                                        <th>Costo Total</th>
+                                        <th>Precio Combo</th>
+                                        <th>Ganancia Neta</th>
+                                        <th>Acciones</th> </tr>
+                                </thead>
+                                <tbody id="combosTableBody">
+                                    <tr>
+                                        <td colspan="5" class="empty-state">No has creado combos todavía.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <div id="modalProducto" class="modal-overlay" hidden>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Agregar Producto</h3>
+                <button class="btn-close" onclick="closeModal('modalProducto')">&times;</button>
+            </div>
+            <form id="productForm">
+                <div class="form-group">
+                    <label for="prodTitle">Título del Producto</label>
+                    <input type="text" id="prodTitle" placeholder="Ej: Billetera de Cuero" required>
+                </div>
+                <div class="form-group">
+                    <label for="prodDesc">Descripción</label>
+                    <input type="text" id="prodDesc" placeholder="Detalles o especificaciones">
+                </div>
+                <div class="form-group">
+                    <label for="prodOrigin">Origen del Producto</label>
+                    <select id="prodOrigin" required>
+                        <option value="propio">Propio (Suma a inversión y genera ganancia)</option>
+                        <option value="colaboracion">Colaboración / Consignación (Protege costo, $0 ganancia)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="prodStock">Cantidad Disponible (Stock)</label>
+                    <input type="number" id="prodStock" placeholder="Ej: 10" min="0" required>
+                </div>
+                <div class="form-group-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="form-group">
+                        <label for="prodCost">Costo ($)</label>
+                        <input type="number" id="prodCost" placeholder="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="prodPrice">Precio Venta ($)</label>
+                        <input type="number" id="prodPrice" placeholder="0" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="prodDiscount">Descuento Opcional ($)</label>
+                    <input type="number" id="prodDiscount" placeholder="0 (Dejar en 0 si no aplica)">
+                </div>
+                <button type="submit" class="btn-submit">Guardar Producto</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="modalCombo" class="modal-overlay" hidden>
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Armar Nuevo Combo / Kit</h3>
+                <button class="btn-close" onclick="closeModal('modalCombo')">&times;</button>
+            </div>
+            <form id="comboForm">
+                <div class="form-group">
+                    <label for="comboName">Nombre del Combo</label>
+                    <input type="text" id="comboName" placeholder="Ej: Kit Regalo Premium" required>
+                </div>
+                <div class="form-group">
+                    <label for="comboProductSelector">Seleccionar Producto para el Combo</label>
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+                        <input type="text" id="comboProductSelector" list="productsDatalist" placeholder="Buscar producto..." style="flex: 2;">
+                        <datalist id="productsDatalist"></datalist>
+                        <input type="number" id="comboProductQty" value="1" min="1" style="flex: 0.5; text-align: center;" placeholder="Cant.">
+                        <button type="button" class="btn-primary-sm" onclick="agregarProductoAlCombo()" style="padding: 0 15px; height: 45px;">➕</button>
+                    </div>
+                    <div id="selectedComboProductsList" style="max-height: 150px; overflow-y: auto; border: 1px solid var(--color-border); padding: 10px; border-radius: var(--radius-sm); background: #f9fafb;">
+                        <span style="color: var(--color-text-muted); font-size: 13px;">Ningún producto añadido al combo todavía.</span>
+                    </div>
+                </div>
+                <div style="background: var(--color-accent-muted); padding: 15px; border-radius: var(--radius-sm); margin-bottom: 20px; font-size: 13px;">
+                    <p style="margin-bottom: 5px;"><strong>Costo Acumulado Real:</strong> <span id="summaryCost">$0</span></p>
+                    <p style="margin-bottom: 5px; color: var(--color-lila-text);"><strong>Retención Colaboraciones (Protegido):</strong> <span id="summaryColabProtect">$0</span></p>
+                    <p><strong>Sugerencia de Venta Base:</strong> <span id="summarySuggested">$0</span></p>
+                </div>
+                <div class="form-group">
+                    <label for="comboFinalPrice">Precio de Venta del Combo ($)</label>
+                    <input type="number" id="comboFinalPrice" placeholder="Define el precio final al público" required>
+                </div>
+                <button type="submit" class="btn-submit">Crear Combo</button>
+            </form>
+        </div>
+    </div>
+
+    <nav class="mobile-nav">
+        <a href="dashboard.html" class="mobile-nav-item">
+            <span class="nav-icon">📊</span>
+            <span>Finanzas</span>
+        </a>
+        <a href="inventario.html" class="mobile-nav-item active">
+            <span class="nav-icon">📦</span>
+            <span>Inventario</span>
+        </a>
+        <a href="#" class="mobile-nav-item">
+            <span class="nav-icon">👥</span>
+            <span>Clientes</span>
+        </a>
+    </nav>
+
+    <script>
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active-content'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            if(tab === 'productos') {
+                document.getElementById('tab-productos').classList.add('active-content');
+                event.currentTarget.classList.add('active');
+            } else {
+                document.getElementById('tab-combos').classList.add('active-content');
+                event.currentTarget.classList.add('active');
+            }
+        }
+        function openModal(id) { document.getElementById(id).hidden = false; }
+        function closeModal(id) { document.getElementById(id).hidden = true; }
+    </script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAzW2B3R_TxTojtp8Vw0iS3C2APO2Pmi5A",
+            authDomain: "daesmi-8a93c.firebaseapp.com",
+            projectId: "daesmi-8a93c",
+            storageBucket: "daesmi-8a93c.firebasestorage.app",
+            messagingSenderId: "298101414150",
+            appId: "1:298101414150:web:294bcf5dd07f18a9cc6687"
+        };
+        firebase.initializeApp(firebaseConfig);
+        window.db = firebase.firestore();
+    </script>
+
+    <script src="js/auth.js"></script>     
+    <script src="js/inventario.js"></script>
+    <script>    
+        protegerPantalla(() => {
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('app-content').style.display = 'flex';
+            console.log("✅ DAESMI OS - Inventario cargado y seguro.");
+        });
+    </script>
+</body>
+</html>
