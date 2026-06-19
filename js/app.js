@@ -118,7 +118,7 @@ window.ajustarFormularioPorTipo = function() {
 
     if (type === 'expense') {
         if (seccionProducto) seccionProducto.style.display = 'none';
-        if (categoriaSelect) categoriaSelect.value = 'Compra de productos';
+        if (categoriaSelect) categoriaSelect.value = 'Gastos Fijos';
     } else {
         if (seccionProducto) seccionProducto.style.display = 'block';
         if (categoriaSelect) categoriaSelect.value = 'Ventas';
@@ -292,53 +292,31 @@ function renderTransacciones() {
 
 function calcularMetricasFinancieras() {
     let totalVendido = 0;
-    // Estas variables ahora son "Saldos": empiezan en 0 y se ajustan
-    let saldoGanancias = 0;
-    let saldoColaboraciones = 0;
-    let saldoCostoPropio = 0;
+    let totalCostoPropio = 0;
+    let totalColaboraciones = 0; 
+    let totalGanancias = 0;
 
     transacciones.forEach(tx => {
-        const monto = Number(tx.monto || 0);
-
         if (tx.tipo === 'income') {
-            totalVendido += monto;
-            
-            // Cuando vendes, el dinero entra a las bolsas correspondientes
-            // Asumimos que la venta reparte el valor:
-            saldoColaboraciones += Number(tx.colabRetencion || 0);
-            saldoCostoPropio += Number(tx.costoPropio || 0);
-            
-            // Lo que queda de la venta va a la bolsa de ganancias
-            let restoParaGanancias = monto - Number(tx.colabRetencion || 0) - Number(tx.costoPropio || 0);
-            saldoGanancias += restoParaGanancias;
-
+            totalVendido += Number(tx.monto || 0);
+            totalColaboraciones += Number(tx.colabRetencion || 0);
+            totalCostoPropio += Number(tx.costoPropio || 0);
         } else if (tx.tipo === 'expense') {
-            // Cuando retiras o pagas, restas de la bolsa específica
-            if (tx.categoria === 'Retiro de ganancias') {
-                saldoGanancias -= monto;
-            } else if (tx.categoria === 'Pago a productos de colaboradores') {
-                saldoColaboraciones -= monto;
-            } else if (tx.categoria === 'Compra de productos') {
-                saldoCostoPropio -= monto;
-            }
+            totalCostoPropio += Number(tx.monto || 0);
         }
     });
 
-    // Actualización del DOM (Asegúrate de que tus IDs en el HTML coincidan con estos)
-    // Nota: totalVendido sigue siendo el histórico, los otros son saldos actuales.
-    const setElement = (id, val) => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = `$${val.toLocaleString('es-CO')}`;
-    };
+    totalGanancias = totalVendido - totalColaboraciones - totalCostoPropio;
 
-    setElement('totalVendido', totalVendido);
-    setElement('totalColaboracion', saldoColaboraciones); // Aquí verás el saldo vivo
-    setElement('totalCostoPropio', saldoCostoPropio);     // Aquí verás el saldo vivo
-    setElement('totalGanancias', saldoGanancias);         // Aquí verás el saldo vivo
+    if (document.getElementById('totalVendido')) document.getElementById('totalVendido').textContent = `$${totalVendido.toLocaleString()}`;
+    if (document.getElementById('totalCostoPropio')) document.getElementById('totalCostoPropio').textContent = `$${totalCostoPropio.toLocaleString()}`;
+    if (document.getElementById('totalColaboracion')) document.getElementById('totalColaboracion').textContent = `$${totalColaboraciones.toLocaleString()}`;
     
-    // Cambiar color si el saldo es negativo
-    const elGanancias = document.getElementById('totalGanancias');
-    if (elGanancias) elGanancias.style.color = saldoGanancias >= 0 ? '#7C3AED' : '#DC2626';
+    if (document.getElementById('totalGanancias')) {
+        const txtGanancias = document.getElementById('totalGanancias');
+        txtGanancias.textContent = `$${totalGanancias.toLocaleString()}`;
+        txtGanancias.style.color = totalGanancias >= 0 ? '#059669' : '#DC2626';
+    }
 }
 
 window.eliminarTransaccion = function(index) {
