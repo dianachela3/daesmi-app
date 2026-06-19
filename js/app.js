@@ -397,13 +397,44 @@ window.prepararEditarTransaccion = function(index) {
 
 function poblarSelectorMeses() {
     const selector = document.getElementById('filtroMes');
-    const meses = [...new Set(transacciones.map(tx => {
-        const date = tx.fechaTimestamp?.toDate ? tx.fechaTimestamp.toDate() : new Date();
-        return `${date.getFullYear()}-${date.getMonth() + 1}`;
-    }))].sort().reverse();
+    if (!selector) return;
 
-    selector.innerHTML = '<option value="all">Todos los meses</option>' + 
-        meses.map(m => `<option value="${m}">${new Date(m.split('-')[0], m.split('-')[1]-1).toLocaleString('es-ES', {month: 'long', year: 'numeric'})}</option>`).join('');
+    // Extraer años y meses de todas las transacciones
+    const mesesDisponibles = new Set();
+    
+    transacciones.forEach(tx => {
+        let fecha;
+        // Lógica para detectar la fecha según cómo esté guardada
+        if (tx.fechaTimestamp?.toDate) {
+            fecha = tx.fechaTimestamp.toDate();
+        } else if (tx.fecha && typeof tx.fecha === 'string') {
+            // Asume formato "DD/MM/YYYY" (ajusta si es distinto)
+            const partes = tx.fecha.split('/');
+            fecha = new Date(partes[2], partes[1] - 1, partes[0]);
+        } else {
+            fecha = new Date();
+        }
+
+        if (!isNaN(fecha)) {
+            const mesAño = `${fecha.getFullYear()}-${fecha.getMonth() + 1}`;
+            mesesDisponibles.add(mesAño);
+        }
+    });
+
+    // Ordenar de más reciente a más antiguo
+    const listaMeses = Array.from(mesesDisponibles).sort((a, b) => {
+        return new Date(b) - new Date(a);
+    });
+
+    // Construir el HTML
+    let htmlOptions = '<option value="all">Todos los meses</option>';
+    listaMeses.forEach(m => {
+        const [year, month] = m.split('-');
+        const nombreMes = new Date(year, month - 1).toLocaleString('es-ES', { month: 'long', year: 'numeric' });
+        htmlOptions += `<option value="${m}">${nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1)}</option>`;
+    });
+
+    selector.innerHTML = htmlOptions;
 }
 
 window.aplicarFiltros = function() {
