@@ -345,38 +345,43 @@ function calcularMetricasFinancieras(datos = transacciones) {
 }
 
 window.eliminarTransaccion = function(index) {
-    if (confirm("¿Seguro que deseas eliminar este registro? El stock de los productos vendidos se restaurará de forma automática en la nube.")) {
+    if (confirm("¿Seguro que deseas eliminar este registro? El stock de los productos vendidos se restaurará de forma automática.")) {
         const tx = transacciones[index];
 
-        if (tx.tipo === 'income' && tx.itemVinculado) {
-            if (tx.itemVinculado.type === 'producto') {
-                const prod = productos[tx.itemVinculado.index];
-                if (prod) {
-                    window.db.collection("productos").doc(prod.id).update({ stock: Number(prod.stock || 0) + 1 });
-                }
-            } 
-            else if (tx.itemVinculado.type === 'combo') {
-                if (tx.concepto.includes("Venta Combo:")) {
-                    const comboVendido = combos[tx.itemVinculado.index];
-                    if (comboVendido && comboVendido.items) {
-                        comboVendido.items.forEach(itemStr => {
+        if (tx.tipo === 'income' && tx.itemsDetalle && Array.isArray(tx.itemsDetalle)) {
+            tx.itemsDetalle.forEach(item => {
+                if (item.tipo === 'producto') {
+                    // Buscar el producto en la lista global para obtener su ID
+                    const prod = productos.find(p => p.title === item.nombre);
+                    if (prod) {
+                        window.db.collection("productos").doc(prod.id).update({ 
+                            stock: Number(prod.stock || 0) + item.cantidad 
+                        });
+                    }
+                } else if (item.tipo === 'combo') {
+                    // Si es combo, buscar el combo original para saber qué productos traía
+                    const combo = combos.find(c => c.name === item.nombre);
+                    if (combo && combo.items) {
+                        combo.items.forEach(itemStr => {
                             const nombreProd = itemStr.split(' (x')[0];
                             const matchCantidad = itemStr.match(/\(x(\d+)\)/);
-                            const cantidadDevolver = matchCantidad ? parseInt(matchCantidad[1]) : 1;
-
+                            const cant = (matchCantidad ? parseInt(matchCantidad[1]) : 1) * item.cantidad;
+                            
                             const prodInv = productos.find(p => p.title === nombreProd);
                             if (prodInv) {
-                                window.db.collection("productos").doc(prodInv.id).update({ stock: Number(prodInv.stock || 0) + cantidadDevolver });
+                                window.db.collection("productos").doc(prodInv.id).update({ 
+                                    stock: Number(prodInv.stock || 0) + cant 
+                                });
                             }
                         });
                     }
                 }
-            }
+            });
         }
 
         window.db.collection("transacciones").doc(tx.id).delete()
-        .then(() => console.log("Documento eliminado de la nube"))
-        .catch((error) => console.error("Error al eliminar de Firebase: ", error));
+            .then(() => console.log("Documento eliminado y stock restaurado"))
+            .catch((error) => console.error("Error al eliminar: ", error));
     }
 };
 
