@@ -54,17 +54,24 @@
                 </div>
 
                 <section class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 25px;">
-                    <div class="metric-card">
-                        <h3 style="font-size: 14px; color: var(--color-text-muted);">Total Colaboraciones</h3>
+                    <div class="metric-card" style="background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
+                        <h3 style="font-size: 14px; color: #666; margin-bottom: 8px;">Total Vendido (Histórico)</h3>
+                        <p class="amount" id="totalVendido" style="font-size: 24px; font-weight: 700;">$0</p>
+                    </div>
+                    
+                    <div class="metric-card" style="background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
+                        <h3 style="font-size: 14px; color: #0284C7; margin-bottom: 8px;">Saldo Colaboración</h3>
                         <p class="amount" id="totalColaboracion" style="font-size: 24px; color: #0284C7; font-weight: 700;">$0</p>
                     </div>
-                    <div class="metric-card">
-                        <h3 style="font-size: 14px; color: var(--color-text-muted);">Compra Productos (Inv)</h3>
-                        <p class="amount" id="totalCompraProductos" style="font-size: 24px; color: #D97706; font-weight: 700;">$0</p>
+                
+                    <div class="metric-card" style="background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
+                        <h3 style="font-size: 14px; color: #6B7280; margin-bottom: 8px;">Saldo Costo Propio</h3>
+                        <p class="amount" id="totalCostoPropio" style="font-size: 24px; color: #6B7280; font-weight: 700;">$0</p>
                     </div>
-                    <div class="metric-card">
-                        <h3 style="font-size: 14px; color: var(--color-text-muted);">Retiros Ganancias</h3>
-                        <p class="amount" id="totalRetiroGanancias" style="font-size: 24px; color: #EF4444; font-weight: 700;">$0</p>
+                
+                    <div class="metric-card" style="background: #EEF2F6; padding: 20px; border-radius: 8px; border: 1px solid #DDD6FE;">
+                        <h3 style="font-size: 14px; color: #7C3AED; font-weight: 600; margin-bottom: 8px;">Saldo Ganancias</h3>
+                        <p class="amount" id="totalGanancias" style="font-size: 24px; color: #7C3AED; font-weight: 800;">$0</p>
                     </div>
                 </section>
 
