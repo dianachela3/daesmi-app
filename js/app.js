@@ -158,13 +158,13 @@ window.procesarNuevoMovimiento = function() {
     const type = document.getElementById('txType').value;
     const concepto = document.getElementById('txConcept').value;
     const categoria = document.getElementById('txCategory').value;
+    const montoCobrado = Number(document.getElementById('txAmount').value);
 
     if (editandoTxIndex !== null) {
-        // Mantenemos tu lógica de edición simple para no romper lo que ya funciona
         const idDocumento = transacciones[editandoTxIndex].id;
         window.db.collection("transacciones").doc(idDocumento).update({
             concepto: concepto,
-            monto: Number(document.getElementById('txAmount').value),
+            monto: montoCobrado,
             categoria: categoria,
             tipo: type
         }).then(() => {
@@ -172,17 +172,17 @@ window.procesarNuevoMovimiento = function() {
             cerrarModal();
         });
     } else {
-        // LÓGICA DE VENTA CON CARRITO
         if (type === 'income') {
             if (carritoTemporal.length === 0) return alert("Agregue al menos un producto al carrito");
 
-            let totalMonto = 0;
+            let totalSistema = 0; // Lo que valen los productos
             let totalColab = 0;
             let totalCosto = 0;
 
             carritoTemporal.forEach(item => {
-                totalMonto += (item.precio * item.cantidad);
-
+                totalSistema += (item.precio * item.cantidad);
+                
+                // Cálculo de costos reales para deducción de ganancias
                 if (item.tipo === 'producto') {
                     const prod = productos[item.index];
                     if (prod) {
@@ -214,13 +214,15 @@ window.procesarNuevoMovimiento = function() {
                 }
             });
 
+            // Registro: Guardamos el monto cobrado por el usuario, 
+            // pero mantenemos los costos calculados para la métrica de ganancias
             window.db.collection("transacciones").add({
                 fecha: new Date().toLocaleDateString('es-CO'),
                 fechaTimestamp: new Date(),
                 concepto: concepto,
                 categoria: categoria,
                 tipo: 'income',
-                monto: totalMonto,
+                monto: montoCobrado, // Se usa el valor editado por el usuario
                 colabRetencion: totalColab,
                 costoPropio: totalCosto,
                 itemsDetalle: carritoTemporal
@@ -232,7 +234,7 @@ window.procesarNuevoMovimiento = function() {
                 fecha: new Date().toLocaleDateString('es-CO'),
                 fechaTimestamp: new Date(),
                 concepto: concepto,
-                monto: Number(document.getElementById('txAmount').value),
+                monto: montoCobrado,
                 categoria: categoria,
                 tipo: 'expense'
             }).then(() => cerrarModal());
@@ -478,22 +480,19 @@ window.agregarAlCarrito = function() {
 
 window.actualizarUI = function() {
     const lista = document.getElementById('listaCarrito');
-    let total = 0;
+    let totalSistema = 0;
+    
     lista.innerHTML = carritoTemporal.map((item, i) => {
-        total += (item.precio * item.cantidad);
+        totalSistema += (item.precio * item.cantidad);
         return `<li style="display:flex; justify-content:space-between; margin-bottom:5px;">
             ${item.cantidad}x ${item.nombre} - $${(item.precio * item.cantidad).toLocaleString()}
             <button type="button" onclick="carritoTemporal.splice(${i},1); actualizarUI()">x</button>
         </li>`;
     }).join('');
-    document.getElementById('txAmount').value = total;
-};
 
-window.actualizarUI = function() {
-    const lista = document.getElementById('listaCarrito');
-    lista.innerHTML = carritoTemporal.map((item, i) => `
-        <li style="display:flex; justify-content:space-between; margin-bottom:5px;">
-            ${item.cantidad}x ${item.nombre} - $${(item.precio * item.cantidad).toLocaleString()}
-            <button type="button" onclick="carritoTemporal.splice(${i},1); actualizarUI()">x</button>
-        </li>`).join('');
+    // Actualizamos el sugerido y el campo editable
+    document.getElementById('totalCalculadoSugerido').textContent = `$${totalSistema.toLocaleString()}`;
+    // Solo auto-completamos si el usuario no ha puesto nada aún o si es nuevo
+    const inputMonto = document.getElementById('txAmount');
+    inputMonto.value = totalSistema; 
 };
