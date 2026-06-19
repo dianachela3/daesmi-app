@@ -113,19 +113,19 @@ function setupEventos() {
 }
 
 window.ajustarFormularioPorTipo = function() {
-    const typeEl = document.getElementById('txType');
+    const type = document.getElementById('txType').value;
     const seccionProducto = document.getElementById('seccionVentaProducto');
+    const seccionCategoria = document.getElementById('seccionCategoria');
     const categoriaSelect = document.getElementById('txCategory');
 
-    if (!typeEl) return; 
-    const type = typeEl.value;
-
-    if (type === 'expense') {
-        if (seccionProducto) seccionProducto.style.display = 'none';
-        if (categoriaSelect) categoriaSelect.value = 'Compra de productos';
-    } else {
+    if (type === 'income') {
         if (seccionProducto) seccionProducto.style.display = 'block';
-        if (categoriaSelect) categoriaSelect.value = 'Ventas';
+        if (seccionCategoria) seccionCategoria.style.display = 'none';
+        categoriaSelect.value = 'Ventas'; 
+    } else {
+        if (seccionProducto) seccionProducto.style.display = 'none';
+        if (seccionCategoria) seccionCategoria.style.display = 'block';
+        categoriaSelect.value = 'Compra de productos';
     }
 };
 
@@ -462,7 +462,7 @@ window.agregarAlCarrito = function() {
     const cantidad = parseInt(document.getElementById('txQty').value) || 1;
     const option = document.querySelector(`#finanzasDatalist option[value="${selector.value.replace(/"/g, '\\"')}"]`);
 
-    if (!option) return alert("Selecciona un producto del listado");
+    if (!option) return alert("Selecciona un producto válido del listado");
 
     carritoTemporal.push({
         nombre: option.getAttribute('data-title'),
@@ -472,14 +472,21 @@ window.agregarAlCarrito = function() {
         index: Number(option.getAttribute('data-index'))
     });
 
-    // Actualizar UI
+    actualizarUI();
+    selector.value = '';
+};
+
+window.actualizarUI = function() {
     const lista = document.getElementById('listaCarrito');
-    lista.innerHTML = carritoTemporal.map((item, i) => `
-        <li style="display:flex; justify-content:space-between; margin-bottom:5px;">
+    let total = 0;
+    lista.innerHTML = carritoTemporal.map((item, i) => {
+        total += (item.precio * item.cantidad);
+        return `<li style="display:flex; justify-content:space-between; margin-bottom:5px;">
             ${item.cantidad}x ${item.nombre} - $${(item.precio * item.cantidad).toLocaleString()}
             <button type="button" onclick="carritoTemporal.splice(${i},1); actualizarUI()">x</button>
-        </li>`).join('');
-    selector.value = '';
+        </li>`;
+    }).join('');
+    document.getElementById('txAmount').value = total;
 };
 
 window.actualizarUI = function() {
