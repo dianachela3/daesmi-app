@@ -2,6 +2,7 @@ let transacciones = [];
 let productos = [];
 let combos = [];
 let editandoTxIndex = null;
+let transaccionesFiltradas = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
@@ -35,6 +36,8 @@ function initSincronizacionNube() {
                 let data = doc.data();
                 data.id = doc.id;
                 transacciones.push(data);
+                poblarSelectorMeses();
+                aplicarFiltros();
             });
             renderTransacciones();
             calcularMetricasFinancieras();
@@ -244,16 +247,16 @@ function procesarNuevoMovimiento() {
     if (submitBtn) submitBtn.textContent = "Guardar Registro";
 }
 
-function renderTransacciones() {
+function renderTransacciones(datos = transacciones) {
     const tbody = document.getElementById('transactionsTableBody');
     if (!tbody) return;
 
-    if (!transacciones || transacciones.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No hay movimientos registrados esta temporada.</td></tr>`;
+    if (!datos || datos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No hay movimientos registrados para este periodo.</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = transacciones.map((tx, index) => {
+    tbody.innerHTML = datos.map((tx, index) => {
         let fechaFormateada = '';
         if (tx.fecha) {
             if (typeof tx.fecha.toDate === 'function') {
@@ -290,44 +293,37 @@ function renderTransacciones() {
     }).join('');
 }
 
-function calcularMetricasFinancieras() {
+function calcularMetricasFinancieras(datos = transacciones) {
     let totalVendido = 0;
     let saldoGanancias = 0;
     let saldoColaboraciones = 0;
     let saldoCostoPropio = 0;
 
-    transacciones.forEach(tx => {
+    datos.forEach(tx => {
         const monto = Number(tx.monto || 0);
 
         if (tx.tipo === 'income') {
-            // Histórico de ventas
             totalVendido += monto;
             
-            // Repartición inicial basada en lo registrado en el momento de la venta
             saldoColaboraciones += Number(tx.colabRetencion || 0);
             saldoCostoPropio += Number(tx.costoPropio || 0);
             
-            // El resto de la venta va a la bolsa de ganancias
             let restoParaGanancias = monto - Number(tx.colabRetencion || 0) - Number(tx.costoPropio || 0);
             saldoGanancias += restoParaGanancias;
 
         } else if (tx.tipo === 'expense') {
-            // Aquí el dinero sale del cajón correspondiente
             if (tx.categoria === 'Retiro de ganancias') {
                 saldoGanancias -= monto;
             } else if (tx.categoria === 'Pago a productos de colaboradores') {
                 saldoColaboraciones -= monto;
             } else if (tx.categoria === 'Compra de productos') {
                 saldoCostoPropio -= monto;
-            }
-            // Si es otro gasto, puedes decidir de dónde restarlo (aquí lo resto de ganancias)
-            else {
+            } else {
                 saldoGanancias -= monto;
             }
         }
     });
 
-    // Función auxiliar para actualizar el DOM sin errores
     const setElement = (id, val) => {
         const el = document.getElementById(id);
         if (el) el.textContent = `$${val.toLocaleString('es-CO')}`;
@@ -338,7 +334,6 @@ function calcularMetricasFinancieras() {
     setElement('totalCostoPropio', saldoCostoPropio);
     setElement('totalGanancias', saldoGanancias);
     
-    // Cambiar color de ganancias si está en negativo (alerta)
     const elGanancias = document.getElementById('totalGanancias');
     if (elGanancias) {
         elGanancias.style.color = saldoGanancias >= 0 ? '#7C3AED' : '#DC2626';
@@ -398,4 +393,33 @@ window.prepararEditarTransaccion = function(index) {
     if (submitBtn) submitBtn.textContent = "Actualizar Registro";
 
     document.getElementById('modalTransaction').hidden = false;
+};
+
+function poblarSelectorMeses() {
+    const selector = document.getElementById('filtroMes');
+    const meses = [...new Set(transacciones.map(tx => {
+        const date = tx.fechaTimestamp?.toDate ? tx.fechaTimestamp.toDate() : new Date();
+        return `${date.getFullYear()}-${date.getMonth() + 1}`;
+    }))].sort().reverse();
+
+    selector.innerHTML = '<option value="all">Todos los meses</option>' + 
+        meses.map(m => `<option value="${m}">${new Date(m.split('-')[0], m.split('-')[1]-1).toLocaleString('es-ES', {month: 'long', year: 'numeric'})}</option>`).join('');
+}
+
+window.aplicarFiltros = function() {
+    const valor = document.getElementById('filtroMes').value;
+    
+    if (valor === 'all') {
+        transaccionesFiltradas = transacciones;
+    } else {
+        transaccionesFiltradas = transacciones.filter(tx => {
+            const date = tx.fechaTimestamp?.toDate ? tx.fechaTimestamp.toDate() : new Date();
+            const mesTx = `${date.getFullYear()}-${date.getMonth() + 1}`;
+            return mesTx === valor;
+        });
+    }
+    
+    // Renderizamos la tabla y métricas usando el array FILTRADO
+    renderTransacciones(transaccionesFiltradas);
+    calcularMetricasFinancieras(transaccionesFiltradas);
 };
