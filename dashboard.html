@@ -121,6 +121,7 @@
                         <option value="expense">Gasto / Salida (-)</option>
                     </select>
                 </div>
+                
                 <div id="seccionVentaProducto" class="form-group">
                     <label>Agregar a la venta</label>
                     <div style="display: flex; gap: 5px;">
@@ -128,19 +129,21 @@
                         <input type="number" id="txQty" value="1" min="1" style="width: 60px;" placeholder="Cant">
                         <button type="button" onclick="agregarAlCarrito()" style="padding: 0 10px;">+</button>
                     </div>
+                    <datalist id="finanzasDatalist"></datalist>
                     <ul id="listaCarrito" style="margin-top:10px; font-size: 13px; list-style: none;"></ul>
-                    <input type="hidden" id="txAmount">
                 </div>
+    
                 <div class="form-group">
                     <label for="txConcept">Concepto / Descripción</label>
                     <input type="text" id="txConcept" placeholder="Ej: Venta Kit Regalo Premium" required>
                 </div>
+    
                 <div class="form-group-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     <div class="form-group">
-                        <label for="txAmount">Monto Cobrado ($)</label>
-                        <input type="number" id="txAmount" placeholder="0" required>
+                        <label for="txAmount">Monto Total ($)</label>
+                        <input type="number" id="txAmount" placeholder="0" required readonly>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" id="seccionCategoria">
                         <label for="txCategory">Categoría</label>
                         <select id="txCategory">
                             <option value="Retiro de ganancias">Retiro de ganancias</option>
