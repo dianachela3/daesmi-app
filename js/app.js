@@ -118,7 +118,7 @@ window.ajustarFormularioPorTipo = function() {
 
     if (type === 'expense') {
         if (seccionProducto) seccionProducto.style.display = 'none';
-        if (categoriaSelect) categoriaSelect.value = 'Gastos Fijos';
+        if (categoriaSelect) categoriaSelect.value = 'Compra de productos';
     } else {
         if (seccionProducto) seccionProducto.style.display = 'block';
         if (categoriaSelect) categoriaSelect.value = 'Ventas';
