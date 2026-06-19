@@ -35,10 +35,10 @@ function initSincronizacionNube() {
             snapshot.forEach((doc) => {
                 let data = doc.data();
                 data.id = doc.id;
-                transacciones.push(data);
-                poblarSelectorMeses();
-                aplicarFiltros();
+                transacciones.push(data);               
             });
+            poblarSelectorMeses();
+            aplicarFiltros();
             renderTransacciones();
             calcularMetricasFinancieras();
         }, (error) => console.error("Error en Snapshot Transacciones: ", error));
