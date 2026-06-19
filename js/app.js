@@ -292,30 +292,56 @@ function renderTransacciones() {
 
 function calcularMetricasFinancieras() {
     let totalVendido = 0;
-    let totalCostoPropio = 0;
-    let totalColaboraciones = 0; 
-    let totalGanancias = 0;
+    let saldoGanancias = 0;
+    let saldoColaboraciones = 0;
+    let saldoCostoPropio = 0;
 
     transacciones.forEach(tx => {
+        const monto = Number(tx.monto || 0);
+
         if (tx.tipo === 'income') {
-            totalVendido += Number(tx.monto || 0);
-            totalColaboraciones += Number(tx.colabRetencion || 0);
-            totalCostoPropio += Number(tx.costoPropio || 0);
+            // Histórico de ventas
+            totalVendido += monto;
+            
+            // Repartición inicial basada en lo registrado en el momento de la venta
+            saldoColaboraciones += Number(tx.colabRetencion || 0);
+            saldoCostoPropio += Number(tx.costoPropio || 0);
+            
+            // El resto de la venta va a la bolsa de ganancias
+            let restoParaGanancias = monto - Number(tx.colabRetencion || 0) - Number(tx.costoPropio || 0);
+            saldoGanancias += restoParaGanancias;
+
         } else if (tx.tipo === 'expense') {
-            totalCostoPropio += Number(tx.monto || 0);
+            // Aquí el dinero sale del cajón correspondiente
+            if (tx.categoria === 'Retiro de ganancias') {
+                saldoGanancias -= monto;
+            } else if (tx.categoria === 'Pago a productos de colaboradores') {
+                saldoColaboraciones -= monto;
+            } else if (tx.categoria === 'Compra de productos') {
+                saldoCostoPropio -= monto;
+            }
+            // Si es otro gasto, puedes decidir de dónde restarlo (aquí lo resto de ganancias)
+            else {
+                saldoGanancias -= monto;
+            }
         }
     });
 
-    totalGanancias = totalVendido - totalColaboraciones - totalCostoPropio;
+    // Función auxiliar para actualizar el DOM sin errores
+    const setElement = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = `$${val.toLocaleString('es-CO')}`;
+    };
 
-    if (document.getElementById('totalVendido')) document.getElementById('totalVendido').textContent = `$${totalVendido.toLocaleString()}`;
-    if (document.getElementById('totalCostoPropio')) document.getElementById('totalCostoPropio').textContent = `$${totalCostoPropio.toLocaleString()}`;
-    if (document.getElementById('totalColaboracion')) document.getElementById('totalColaboracion').textContent = `$${totalColaboraciones.toLocaleString()}`;
+    setElement('totalVendido', totalVendido);
+    setElement('totalColaboracion', saldoColaboraciones);
+    setElement('totalCostoPropio', saldoCostoPropio);
+    setElement('totalGanancias', saldoGanancias);
     
-    if (document.getElementById('totalGanancias')) {
-        const txtGanancias = document.getElementById('totalGanancias');
-        txtGanancias.textContent = `$${totalGanancias.toLocaleString()}`;
-        txtGanancias.style.color = totalGanancias >= 0 ? '#059669' : '#DC2626';
+    // Cambiar color de ganancias si está en negativo (alerta)
+    const elGanancias = document.getElementById('totalGanancias');
+    if (elGanancias) {
+        elGanancias.style.color = saldoGanancias >= 0 ? '#7C3AED' : '#DC2626';
     }
 }
 
