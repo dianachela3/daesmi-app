@@ -3,6 +3,7 @@ let productos = [];
 let combos = [];
 let editandoTxIndex = null;
 let transaccionesFiltradas = [];
+let carritoTemporal = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
@@ -153,98 +154,99 @@ function cargarDatalistVentas() {
     datalist.innerHTML = opcionesHTML.join('');
 }
 
-function procesarNuevoMovimiento() {
+window.procesarNuevoMovimiento = function() {
     const type = document.getElementById('txType').value;
     const concepto = document.getElementById('txConcept').value;
-    const monto = Number(document.getElementById('txAmount').value);
     const categoria = document.getElementById('txCategory').value;
-    const selectorVal = document.getElementById('txProductSelector').value;
-
-    let colabExtract = 0; 
-    let costoPropioExtract = 0;
-    let vinculo = null;
 
     if (editandoTxIndex !== null) {
+        // Mantenemos tu lógica de edición simple para no romper lo que ya funciona
         const idDocumento = transacciones[editandoTxIndex].id;
-        
         window.db.collection("transacciones").doc(idDocumento).update({
             concepto: concepto,
-            monto: monto,
+            monto: Number(document.getElementById('txAmount').value),
             categoria: categoria,
             tipo: type
-        })
-        .then(() => {
-            console.log("Transacción actualizada en Firebase");
+        }).then(() => {
             editandoTxIndex = null;
-        })
-        .catch((error) => console.error("Error al actualizar: ", error));
-
+            cerrarModal();
+        });
     } else {
-        if (type === 'income' && selectorVal) {
-            const option = document.querySelector(`#finanzasDatalist option[value="${selectorVal.replace(/"/g, '\\"')}"]`);
-            if (option) {
-                const itemType = option.getAttribute('data-type');
-                const itemIdx = Number(option.getAttribute('data-index'));
-                
-                vinculo = { type: itemType, index: itemIdx };
+        // LÓGICA DE VENTA CON CARRITO
+        if (type === 'income') {
+            if (carritoTemporal.length === 0) return alert("Agregue al menos un producto al carrito");
 
-                if (itemType === 'producto') {
-                    const prod = productos[itemIdx];
+            let totalMonto = 0;
+            let totalColab = 0;
+            let totalCosto = 0;
+
+            carritoTemporal.forEach(item => {
+                totalMonto += (item.precio * item.cantidad);
+
+                if (item.tipo === 'producto') {
+                    const prod = productos[item.index];
                     if (prod) {
-                        if (prod.origin === 'colaboracion') colabExtract = Number(prod.cost || 0);
-                        else costoPropioExtract = Number(prod.cost || 0);
-
-                        const nuevoStock = Math.max(0, Number(prod.stock || 0) - 1);
-                        window.db.collection("productos").doc(prod.id).update({ stock: nuevoStock });
+                        if (prod.origin === 'colaboracion') totalColab += (Number(prod.cost || 0) * item.cantidad);
+                        else totalCosto += (Number(prod.cost || 0) * item.cantidad);
+                        
+                        window.db.collection("productos").doc(prod.id).update({ 
+                            stock: Math.max(0, Number(prod.stock || 0) - item.cantidad) 
+                        });
                     }
-                } 
-                else if (itemType === 'combo') {
-                    const combo = combos[itemIdx];
+                } else if (item.tipo === 'combo') {
+                    const combo = combos[item.index];
                     if (combo) {
-                        colabExtract = Number(combo.colabProtect || 0);
-                        costoPropioExtract = Math.max(0, Number(combo.totalCost || 0) - colabExtract);
+                        totalColab += (Number(combo.colabProtect || 0) * item.cantidad);
+                        totalCosto += (Math.max(0, Number(combo.totalCost || 0) - Number(combo.colabProtect || 0)) * item.cantidad);
 
-                        if (combo.items && combo.items.length > 0) {
-                            combo.items.forEach(itemStr => {
-                                const nombreProd = itemStr.split(' (x')[0];
-                                const matchCantidad = itemStr.match(/\(x(\d+)\)/);
-                                const cantidadADescontar = matchCantidad ? parseInt(matchCantidad[1]) : 1;
-
-                                const prodEnInv = productos.find(p => p.title === nombreProd);
-                                if (prodEnInv) {
-                                    const nuevoStockComponente = Math.max(0, Number(prodEnInv.stock || 0) - cantidadADescontar);
-                                    window.db.collection("productos").doc(prodEnInv.id).update({ stock: nuevoStockComponente });
-                                }
-                            });
-                        }
+                        combo.items.forEach(itemStr => {
+                            const nombreProd = itemStr.split(' (x')[0];
+                            const matchCantidad = itemStr.match(/\(x(\d+)\)/);
+                            const cant = (matchCantidad ? parseInt(matchCantidad[1]) : 1) * item.cantidad;
+                            const prodEnInv = productos.find(p => p.title === nombreProd);
+                            if (prodEnInv) {
+                                window.db.collection("productos").doc(prodEnInv.id).update({ 
+                                    stock: Math.max(0, Number(prodEnInv.stock || 0) - cant) 
+                                });
+                            }
+                        });
                     }
                 }
-            }
+            });
+
+            window.db.collection("transacciones").add({
+                fecha: new Date().toLocaleDateString('es-CO'),
+                fechaTimestamp: new Date(),
+                concepto: concepto,
+                categoria: categoria,
+                tipo: 'income',
+                monto: totalMonto,
+                colabRetencion: totalColab,
+                costoPropio: totalCosto,
+                itemsDetalle: carritoTemporal
+            }).then(() => cerrarModal());
+
+        } else {
+            // GASTOS (Lógica normal)
+            window.db.collection("transacciones").add({
+                fecha: new Date().toLocaleDateString('es-CO'),
+                fechaTimestamp: new Date(),
+                concepto: concepto,
+                monto: Number(document.getElementById('txAmount').value),
+                categoria: categoria,
+                tipo: 'expense'
+            }).then(() => cerrarModal());
         }
-
-        const nuevaTx = {
-            fecha: new Date().toLocaleDateString('es-CO'),
-            fechaTimestamp: new Date(), 
-            concepto: concepto,
-            categoria: categoria,
-            tipo: type,
-            monto: monto,
-            colabRetencion: colabExtract,
-            costoPropio: costoPropioExtract,
-            itemVinculado: vinculo
-        };
-
-        window.db.collection("transacciones").add(nuevaTx)
-        .then(() => console.log("Transacción registrada con éxito en Firebase"))
-        .catch((error) => console.error("Error al añadir transacción: ", error));
     }
+};
 
-    const form = document.getElementById('transactionForm');
-    if (form) form.reset();
+// Función auxiliar de limpieza
+function cerrarModal() {
+    carritoTemporal = [];
+    document.getElementById('listaCarrito').innerHTML = '';
+    document.getElementById('transactionForm').reset();
     document.getElementById('modalTransaction').hidden = true;
-    
-    const submitBtn = document.querySelector('#transactionForm .btn-submit');
-    if (submitBtn) submitBtn.textContent = "Guardar Registro";
+    document.querySelector('#transactionForm .btn-submit').textContent = "Guardar Registro";
 }
 
 function renderTransacciones(datos = transacciones) {
@@ -453,4 +455,38 @@ window.aplicarFiltros = function() {
     // Renderizamos la tabla y métricas usando el array FILTRADO
     renderTransacciones(transaccionesFiltradas);
     calcularMetricasFinancieras(transaccionesFiltradas);
+};
+
+window.agregarAlCarrito = function() {
+    const selector = document.getElementById('txProductSelector');
+    const cantidad = parseInt(document.getElementById('txQty').value) || 1;
+    const option = document.querySelector(`#finanzasDatalist option[value="${selector.value.replace(/"/g, '\\"')}"]`);
+
+    if (!option) return alert("Selecciona un producto del listado");
+
+    carritoTemporal.push({
+        nombre: option.getAttribute('data-title'),
+        precio: Number(option.getAttribute('data-price')),
+        cantidad: cantidad,
+        tipo: option.getAttribute('data-type'),
+        index: Number(option.getAttribute('data-index'))
+    });
+
+    // Actualizar UI
+    const lista = document.getElementById('listaCarrito');
+    lista.innerHTML = carritoTemporal.map((item, i) => `
+        <li style="display:flex; justify-content:space-between; margin-bottom:5px;">
+            ${item.cantidad}x ${item.nombre} - $${(item.precio * item.cantidad).toLocaleString()}
+            <button type="button" onclick="carritoTemporal.splice(${i},1); actualizarUI()">x</button>
+        </li>`).join('');
+    selector.value = '';
+};
+
+window.actualizarUI = function() {
+    const lista = document.getElementById('listaCarrito');
+    lista.innerHTML = carritoTemporal.map((item, i) => `
+        <li style="display:flex; justify-content:space-between; margin-bottom:5px;">
+            ${item.cantidad}x ${item.nombre} - $${(item.precio * item.cantidad).toLocaleString()}
+            <button type="button" onclick="carritoTemporal.splice(${i},1); actualizarUI()">x</button>
+        </li>`).join('');
 };
