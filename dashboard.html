@@ -54,23 +54,20 @@
                 </div>
 
                 <section class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 25px;">
-                    <div class="metric-card" style="background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
-                        <h3 style="font-size: 14px; color: #666; margin-bottom: 8px;">Total Vendido (Histórico)</h3>
-                        <p class="amount" id="totalVendido" style="font-size: 24px; font-weight: 700;">$0</p>
+                    <div class="metric-card" style="background: #fff; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                        <h3 style="font-size: 14px; color: var(--color-text-muted); margin-bottom: 8px;">Total Vendido</h3>
+                        <p class="amount" id="totalVendido" style="font-size: 24px; color: var(--color-text-main); font-weight: 700;">$0</p>
                     </div>
-                    
-                    <div class="metric-card" style="background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
-                        <h3 style="font-size: 14px; color: #0284C7; margin-bottom: 8px;">Saldo Colaboración</h3>
-                        <p class="amount" id="totalColaboracion" style="font-size: 24px; color: #0284C7; font-weight: 700;">$0</p>
-                    </div>
-                
-                    <div class="metric-card" style="background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
-                        <h3 style="font-size: 14px; color: #6B7280; margin-bottom: 8px;">Saldo Costo Propio</h3>
+                    <div class="metric-card" style="background: #fff; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                        <h3 style="font-size: 14px; color: var(--color-text-muted); margin-bottom: 8px;">Total Costo (Propio)</h3>
                         <p class="amount" id="totalCostoPropio" style="font-size: 24px; color: #6B7280; font-weight: 700;">$0</p>
                     </div>
-                
-                    <div class="metric-card" style="background: #EEF2F6; padding: 20px; border-radius: 8px; border: 1px solid #DDD6FE;">
-                        <h3 style="font-size: 14px; color: #7C3AED; font-weight: 600; margin-bottom: 8px;">Saldo Ganancias</h3>
+                    <div class="metric-card" style="background: #fff; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                        <h3 style="font-size: 14px; color: var(--color-text-muted); margin-bottom: 8px;">Total Colaboración</h3>
+                        <p class="amount" id="totalColaboracion" style="font-size: 24px; color: #0284C7; font-weight: 700;">$0</p>
+                    </div>
+                    <div class="metric-card" style="background: #EEF2F6; padding: 20px; border-radius: var(--radius-md); border: 1px solid #DDD6FE;">
+                        <h3 style="font-size: 14px; color: var(--color-primary); margin-bottom: 8px; font-weight: 600;">Total Ganancias</h3>
                         <p class="amount" id="totalGanancias" style="font-size: 24px; color: #7C3AED; font-weight: 800;">$0</p>
                     </div>
                 </section>
@@ -136,9 +133,11 @@
                     <div class="form-group">
                         <label for="txCategory">Categoría</label>
                         <select id="txCategory">
-                            <option value="Retiro de ganancias">Retiro de ganancias</option>
-                            <option value="Pago a productos de colaboradores">Pago a productos de colaboradores</option>
-                            <option value="Compra de productos">Compra de productos</option>
+                            <option value="Ventas">Ventas</option>
+                            <option value="Servicios">Servicios</option>
+                            <option value="Inventario">Inventario</option>
+                            <option value="Gastos Fijos">Gastos Fijos</option>
+                            <option value="Otros">Otros</option>
                         </select>
                     </div>
                 </div>
