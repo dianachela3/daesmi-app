@@ -122,12 +122,14 @@
                     </select>
                 </div>
                 <div id="seccionVentaProducto" class="form-group">
-                    <label for="txProductSelector">¿Qué vendiste? (Opcional - Descuenta Stock)</label>
-                    <input type="text" id="txProductSelector" list="finanzasDatalist" placeholder="Busca producto o combo...">
-                    <datalist id="finanzasDatalist"></datalist>
-                    <small style="color: var(--color-text-muted); font-size: 11px; display:block; margin-top:4px;">
-                        Selecciona un elemento de la lista para auto-completar el precio y descontar stock.
-                    </small>
+                    <label>Agregar a la venta</label>
+                    <div style="display: flex; gap: 5px;">
+                        <input type="text" id="txProductSelector" list="finanzasDatalist" placeholder="Busca producto o combo...">
+                        <input type="number" id="txQty" value="1" min="1" style="width: 60px;" placeholder="Cant">
+                        <button type="button" onclick="agregarAlCarrito()" style="padding: 0 10px;">+</button>
+                    </div>
+                    <ul id="listaCarrito" style="margin-top:10px; font-size: 13px; list-style: none;"></ul>
+                    <input type="hidden" id="txAmount">
                 </div>
                 <div class="form-group">
                     <label for="txConcept">Concepto / Descripción</label>
