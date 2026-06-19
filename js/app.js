@@ -292,48 +292,53 @@ function renderTransacciones() {
 
 function calcularMetricasFinancieras() {
     let totalVendido = 0;
-    let totalCostoPropio = 0; // Gastos operativos generales
-    let totalColaboraciones = 0; 
-    let totalRetiroGanancias = 0;
-    let totalCompraProductos = 0;
+    // Estas variables ahora son "Saldos": empiezan en 0 y se ajustan
+    let saldoGanancias = 0;
+    let saldoColaboraciones = 0;
+    let saldoCostoPropio = 0;
 
     transacciones.forEach(tx => {
         const monto = Number(tx.monto || 0);
-        
+
         if (tx.tipo === 'income') {
             totalVendido += monto;
-            // Si el ingreso tiene retenciones asociadas, esas NO son ingresos netos
-            totalColaboraciones += Number(tx.colabRetencion || 0);
-            totalCostoPropio += Number(tx.costoPropio || 0);
+            
+            // Cuando vendes, el dinero entra a las bolsas correspondientes
+            // Asumimos que la venta reparte el valor:
+            saldoColaboraciones += Number(tx.colabRetencion || 0);
+            saldoCostoPropio += Number(tx.costoPropio || 0);
+            
+            // Lo que queda de la venta va a la bolsa de ganancias
+            let restoParaGanancias = monto - Number(tx.colabRetencion || 0) - Number(tx.costoPropio || 0);
+            saldoGanancias += restoParaGanancias;
+
         } else if (tx.tipo === 'expense') {
-            // Clasificación pura: donde cae el gasto, ahí se suma
+            // Cuando retiras o pagas, restas de la bolsa específica
             if (tx.categoria === 'Retiro de ganancias') {
-                totalRetiroGanancias += monto;
+                saldoGanancias -= monto;
             } else if (tx.categoria === 'Pago a productos de colaboradores') {
-                totalColaboraciones += monto;
+                saldoColaboraciones -= monto;
             } else if (tx.categoria === 'Compra de productos') {
-                totalCompraProductos += monto;
-            } else {
-                totalCostoPropio += monto;
+                saldoCostoPropio -= monto;
             }
         }
     });
 
-    // La ganancia es el ingreso total menos todo lo que salió del sistema
-    const totalGanancias = totalVendido - totalColaboraciones - totalCostoPropio - totalCompraProductos - totalRetiroGanancias;
+    // Actualización del DOM (Asegúrate de que tus IDs en el HTML coincidan con estos)
+    // Nota: totalVendido sigue siendo el histórico, los otros son saldos actuales.
+    const setElement = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = `$${val.toLocaleString('es-CO')}`;
+    };
 
-    // Actualización del DOM
-    if (document.getElementById('totalVendido')) document.getElementById('totalVendido').textContent = `$${totalVendido.toLocaleString()}`;
-    if (document.getElementById('totalCostoPropio')) document.getElementById('totalCostoPropio').textContent = `$${totalCostoPropio.toLocaleString()}`;
-    if (document.getElementById('totalColaboracion')) document.getElementById('totalColaboracion').textContent = `$${totalColaboraciones.toLocaleString()}`;
-    if (document.getElementById('totalCompraProductos')) document.getElementById('totalCompraProductos').textContent = `$${totalCompraProductos.toLocaleString()}`;
-    if (document.getElementById('totalRetiroGanancias')) document.getElementById('totalRetiroGanancias').textContent = `$${totalRetiroGanancias.toLocaleString()}`;
+    setElement('totalVendido', totalVendido);
+    setElement('totalColaboracion', saldoColaboraciones); // Aquí verás el saldo vivo
+    setElement('totalCostoPropio', saldoCostoPropio);     // Aquí verás el saldo vivo
+    setElement('totalGanancias', saldoGanancias);         // Aquí verás el saldo vivo
     
-    if (document.getElementById('totalGanancias')) {
-        const txtGanancias = document.getElementById('totalGanancias');
-        txtGanancias.textContent = `$${totalGanancias.toLocaleString()}`;
-        txtGanancias.style.color = totalGanancias >= 0 ? '#059669' : '#DC2626';
-    }
+    // Cambiar color si el saldo es negativo
+    const elGanancias = document.getElementById('totalGanancias');
+    if (elGanancias) elGanancias.style.color = saldoGanancias >= 0 ? '#7C3AED' : '#DC2626';
 }
 
 window.eliminarTransaccion = function(index) {
