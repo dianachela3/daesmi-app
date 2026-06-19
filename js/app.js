@@ -294,6 +294,8 @@ function calcularMetricasFinancieras() {
     let totalVendido = 0;
     let totalCostoPropio = 0;
     let totalColaboraciones = 0; 
+    let totalRetiroGanancias = 0; // Nueva variable
+    let totalCompraProductos = 0; // Nueva variable
     let totalGanancias = 0;
 
     transacciones.forEach(tx => {
@@ -302,12 +304,24 @@ function calcularMetricasFinancieras() {
             totalColaboraciones += Number(tx.colabRetencion || 0);
             totalCostoPropio += Number(tx.costoPropio || 0);
         } else if (tx.tipo === 'expense') {
-            totalCostoPropio += Number(tx.monto || 0);
+            // Clasificación según la nueva categoría
+            if (tx.categoria === 'Retiro de ganancias') {
+                totalRetiroGanancias += Number(tx.monto || 0);
+            } else if (tx.categoria === 'Pago a productos de colaboradores') {
+                totalColaboraciones += Number(tx.monto || 0);
+            } else if (tx.categoria === 'Compra de productos') {
+                totalCompraProductos += Number(tx.monto || 0);
+            } else {
+                // Categoría por defecto (Gastos operativos generales)
+                totalCostoPropio += Number(tx.monto || 0);
+            }
         }
     });
 
-    totalGanancias = totalVendido - totalColaboraciones - totalCostoPropio;
+    // La ganancia real ahora descuenta todo lo que sale del flujo principal
+    totalGanancias = totalVendido - totalColaboraciones - totalCostoPropio - totalCompraProductos - totalRetiroGanancias;
 
+    // Actualiza el DOM (asegúrate de tener los elementos en tu HTML si quieres mostrarlos todos)
     if (document.getElementById('totalVendido')) document.getElementById('totalVendido').textContent = `$${totalVendido.toLocaleString()}`;
     if (document.getElementById('totalCostoPropio')) document.getElementById('totalCostoPropio').textContent = `$${totalCostoPropio.toLocaleString()}`;
     if (document.getElementById('totalColaboracion')) document.getElementById('totalColaboracion').textContent = `$${totalColaboraciones.toLocaleString()}`;
